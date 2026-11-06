@@ -7,6 +7,9 @@ import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
+import android.widget.EditText;
+import android.text.TextWatcher;
+import android.text.Editable;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -28,6 +31,9 @@ public final class TaskerActionEditActivity extends Activity {
     private final List<BaseProfile> profiles = new ArrayList<>();
     private Spinner operation;
     private Spinner profile;
+    private Spinner profileSource;
+    private EditText variable;
+    private boolean canReplace;
     private Spinner state;
     private TextView feedback;
     private Button save;
@@ -45,6 +51,8 @@ public final class TaskerActionEditActivity extends Activity {
         Bundle old = TaskerPluginWire.fromIntent(getIntent());
         String previousMode = old != null ? old.getString(TaskerPluginWire.KEY_MODE) : null;
         initialProfile = old != null ? old.getString(TaskerPluginWire.KEY_PROFILE) : null;
+        canReplace = (getIntent().getIntExtra(TaskerPluginWire.EXTRA_HOST_CAPABILITIES, 0)
+                & TaskerPluginWire.CAPABILITY_VARIABLE_REPLACEMENT) != 0;
         canWait = (getIntent().getIntExtra(TaskerPluginWire.EXTRA_HOST_CAPABILITIES, 0)
                 & TaskerPluginWire.CAPABILITY_SYNCHRONOUS) != 0;
         LinearLayout root = new LinearLayout(this);
@@ -56,7 +64,23 @@ public final class TaskerActionEditActivity extends Activity {
         title.setTextSize(22);
         root.addView(title);
         operation = field(root, "Action", ACTIONS);
+        profileSource = field(root, "Profile selection", new String[] {
+                "Choose existing profile", "Use Tasker variable"});
         profile = field(root, "Profile", new String[] {"Loading profiles…"});
+        variable = new EditText(this);
+        variable.setSingleLine(true);
+        variable.setHint("%profile_id");
+        variable.setTextSize(16);
+        root.addView(variable);
+        if (old != null && old.getBoolean(TaskerPluginWire.KEY_DYNAMIC, false)) {
+            profileSource.setSelection(1);
+            variable.setText(initialProfile);
+        }
+        variable.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { refresh(); }
+            @Override public void afterTextChanged(Editable value) { }
+        });
         this.state = field(root, "Profile state", STATES);
         waitForCompletion = new CheckBox(this);
         waitForCompletion.setText("Wait for final result in Tasker");
@@ -83,6 +107,10 @@ public final class TaskerActionEditActivity extends Activity {
         if (old != null && TaskerPluginWire.STATE_OFF.equals(old.getString(TaskerPluginWire.KEY_STATE))) {
             this.state.setSelection(1);
         }
+        profileSource.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(android.widget.AdapterView<?> p, View v, int pos, long id) { refresh(); }
+            @Override public void onNothingSelected(android.widget.AdapterView<?> p) { refresh(); }
+        });
         operation.setOnItemSelectedListener(new android.widget.AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(android.widget.AdapterView<?> parent, View view, int position, long id) { refresh(); }
             @Override public void onNothingSelected(android.widget.AdapterView<?> parent) { refresh(); }
@@ -131,38 +159,54 @@ public final class TaskerActionEditActivity extends Activity {
     }
 
     private void refresh() {
-        if (operation == null || profile == null || save == null) return;
+        if (operation == null || profile == null || save == null || profileSource == null) return;
         boolean apply = operation.getSelectedItemPosition() == 0;
-        profile.setVisibility(apply ? View.VISIBLE : View.GONE);
+        boolean dynamic = apply && profileSource.getSelectedItemPosition() == 1;
+        profileSource.setVisibility(apply ? View.VISIBLE : View.GONE);
+        profile.setVisibility(apply && !dynamic ? View.VISIBLE : View.GONE);
+        variable.setVisibility(dynamic ? View.VISIBLE : View.GONE);
         state.setVisibility(apply ? View.VISIBLE : View.GONE);
         waitForCompletion.setVisibility(apply && canWait ? View.VISIBLE : View.GONE);
-        save.setEnabled(!apply || !profiles.isEmpty());
-        feedback.setText(apply ? (profiles.isEmpty() ? "Create an App Manager profile first." :
-                "Runs the selected profile. The action reports queued; Events report the final outcome.") :
+        boolean validVariable = TaskerPluginWire.validVariableReference(variable.getText().toString().trim());
+        save.setEnabled(!apply || (dynamic ? canReplace && validVariable : !profiles.isEmpty()));
+        feedback.setText(dynamic ? (canReplace
+                ? "Tasker substitutes the variable on each run. It must contain an existing profile ID."
+                : "This Tasker host does not advertise variable substitution.")
+                : apply ? (profiles.isEmpty() ? "Create a profile first, or use a Tasker variable." :
+                "Runs the selected profile. Wait for completion returns the final result when supported.") :
                 "Returns the latest profile result as %am_* variables.");
     }
 
     private void save() {
         String mode = operation.getSelectedItemPosition() == 0
                 ? TaskerPluginWire.MODE_APPLY : TaskerPluginWire.MODE_STATUS;
+        boolean apply = TaskerPluginWire.MODE_APPLY.equals(mode);
+        boolean dynamic = apply && profileSource.getSelectedItemPosition() == 1;
         BaseProfile selected = null;
-        if (TaskerPluginWire.MODE_APPLY.equals(mode)) {
+        String profileId = null;
+        if (dynamic) {
+            profileId = variable.getText().toString().trim();
+            if (!canReplace || !TaskerPluginWire.validVariableReference(profileId)) {
+                feedback.setText("Enter one valid Tasker variable (for example %profile_id).");
+                return;
+            }
+        } else if (apply) {
             int index = profile.getSelectedItemPosition();
             if (index < 0 || index >= profiles.size()) return;
             selected = profiles.get(index);
-            if (!TaskerPluginWire.validProfile(selected.profileId)) {
+            profileId = selected.profileId;
+            if (!TaskerPluginWire.validProfile(profileId)) {
                 feedback.setText("This profile ID is unsupported by Tasker v1."); return;
             }
         }
         try {
             String token = TaskerAccess.tokenForTrustedEditor(this);
-            String state = selected == null ? null : (this.state.getSelectedItemPosition() == 1
+            String state = !apply ? null : (this.state.getSelectedItemPosition() == 1
                     ? TaskerPluginWire.STATE_OFF : TaskerPluginWire.STATE_ON);
-            boolean wait = selected != null && canWait && waitForCompletion.isChecked();
-            Bundle config = TaskerPluginWire.configuration(mode,
-                    selected != null ? selected.profileId : null, state, token, wait);
-            String blurb = selected == null ? "App Manager · Last profile result" :
-                    "App Manager · " + selected.name + " · " + state;
+            boolean wait = apply && canWait && waitForCompletion.isChecked();
+            Bundle config = TaskerPluginWire.configuration(mode, profileId, state, token, wait, dynamic);
+            String blurb = !apply ? "App Manager · Last profile result" :
+                    "App Manager · " + (dynamic ? profileId : selected.name) + " · " + state;
             setResult(RESULT_OK, TaskerPluginWire.editResult(config, blurb, canWait));
             finish();
         } catch (IOException error) { feedback.setText("Could not save the Tasker configuration."); }

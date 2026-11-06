@@ -96,6 +96,13 @@ public final class TaskerActionReceiver extends BroadcastReceiver {
         String profileId = config.getString(TaskerPluginWire.KEY_PROFILE);
         String state = config.getString(TaskerPluginWire.KEY_STATE);
         String id = UUID.randomUUID().toString().replace("-", "");
+        if (config.getBoolean(TaskerPluginWire.KEY_DYNAMIC, false)
+                && (profileId == null || profileId.startsWith("%"))) {
+            // Tasker did not replace the reference; never look up a literal
+            // %variable as a profile or silently select a different profile.
+            TaskerProfileEvents.dispatchFailed(context, id, profileId, state);
+            return TaskerPluginWire.variables(id, profileId, state, "failed", "unresolved_tasker_variable");
+        }
         try {
             // Re-read the file at execution time: Tasker's saved label is not
             // authoritative, and deleted/renamed profiles fail closed.

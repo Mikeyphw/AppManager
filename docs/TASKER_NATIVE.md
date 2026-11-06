@@ -1,4 +1,4 @@
-# App Manager — native Tasker plug-in (AMT-02 R2B)
+# App Manager — native Tasker plug-in (AMT-02 R2D)
 
 **Branch:** `feature/tasker-automation`. This is a first native plug-in cut,
 not a full remote operations API. No root/ADB access is exported beyond the
@@ -11,9 +11,10 @@ pre-existing App Manager profile service, and no user grants are required.
   configuration automatically. No tokens, broadcast extras, or approval dialogs
   to copy/configure manually.
 - **Profile → Event → Plugin → App Manager · Profile Event**: Profile started,
-  completed, or failed.
+  completed, or failed, optionally limited to one existing profile.
 - **Profile → State → Plugin → App Manager · Profile State**: Profile running,
-  last profile succeeded, or last profile failed.
+  last profile succeeded, or last profile failed. Choose **Any profile** for the
+  original behavior, or a specific profile to inspect its own latest result.
 
 **Output variables:** `%am_request_id`, `%am_profile_id`, `%am_state`,
 `%am_status`, `%am_error`. Newly configured Apply Profile actions default to
@@ -50,12 +51,26 @@ remains non-exported.
   of incorrectly reporting success. A later fallback implementation can use
   the normal Android scheduled-work mechanism if device tests demonstrate a
   need. No background workaround is silently enabled.
-- One recent profile operation is used for State queries. Event snapshots are
+- Global State observes the most recent operation; filtered State uses
+  its profile-specific last observation. Event snapshots are
   identified by Tasker's pass-through message IDs, expire after two minutes,
   and do not replay when Tasker queries at startup. On Tasker hosts that do not
   pass through event message IDs, these events intentionally fail closed.
-- Dynamic Tasker variable replacement for profile IDs is not yet included.
-  A configured action can select an existing profile from the editor.
+- Dynamic selection: in an **Apply profile** Action, set **Profile selection**
+  to **Use Tasker variable** and enter one complete Tasker variable such as
+  `%profile_id`. When the host supports setting variable replacement, the
+  Action edit result requests replacement of Bundle key `am.profile` on each
+  fire. The resolved string must be an existing App Manager **profile ID**,
+  not the human-friendly name. Unresolved references fail with
+  `%am_error=unresolved_tasker_variable` (no fallback to another profile).
+  A host without variable replacement cannot save a dynamic Action.
+- Event and State conditions now have a profile selector. Old saved conditions
+  without a profile retain **Any profile** semantics. A removed profile in an
+  existing configuration remains explicitly selected as **Missing profile:**
+  instead of silently widening the filter.
+- Per-profile State stores a bounded (128 profile) local observation snapshot;
+  the original unfiltered State still describes the most recent global
+  operation. This is not a complete execution history or durable job queue.
 - Pending completion callbacks are accepted only after the saved Tasker token
   is checked. Callback URI targets are restricted to the Tasker package,
   and malformed or oversized callback URIs are rejected. A callback delivery

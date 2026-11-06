@@ -97,6 +97,30 @@ def inspect(root: Path = ROOT) -> dict:
     for name, markers in signatures.items():
         for marker in markers:
             if marker not in sources[name]: errors.append('native Tasker safety contract missing: '+name+' / '+marker)
+    # AMT-02 R2D: dynamic profile binding and exact per-profile conditions.
+    r2d_markers = {
+        'TaskerPluginWire.java': ('KEY_DYNAMIC', 'CAPABILITY_VARIABLE_REPLACEMENT',
+                'EXTRA_VARIABLE_REPLACE_KEYS', 'return (validProfile(profile) || (dynamic && validVariableReference(profile)))',
+                'validConditionConfiguration(', 'output.putExtra(EXTRA_VARIABLE_REPLACE_KEYS, KEY_PROFILE)'),
+        'TaskerActionEditActivity.java': ('profileSource', 'canReplace',
+                'validVariableReference(', 'TaskerPluginWire.configuration(mode, profileId, state, token, wait, dynamic)'),
+        'TaskerActionReceiver.java': ('KEY_DYNAMIC', 'unresolved_tasker_variable',
+                'TaskerProfileEvents.dispatchFailed('),
+        'TaskerConditionEditActivity.java': ('Any profile', 'ProfileManager.getProfiles()',
+                'Missing profile:', 'filterIds.get(selection)',
+                'TaskerPluginWire.configuration(values[index], id, null, token)'),
+        'TaskerConditionReceiver.java': ('validConditionConfiguration(',
+                'stateMatches(context, requested, profileFilter)',
+                'matchingEvent(context, messageId, requested, profileFilter)'),
+        'TaskerProfileEvents.java': ('profilePrefix(', 'MessageDigest.getInstance("SHA-256")',
+                'PROFILE_MAX', 'pruneProfileHistory(context);', 'selectedProfile.equals(actualProfile)',
+                'lastTerminal(Context context, @Nullable String selectedProfile)',
+                'stateMatches(Context context, String requested, @Nullable String selectedProfile)'),
+    }
+    for name, markers in r2d_markers.items():
+        for marker in markers:
+            if marker not in sources[name]:
+                errors.append('R2D dynamic/filter contract missing: ' + name + ' / ' + marker)
     service = (root / SERVICE).read_text()
     for marker in ('TaskerProfileEvents.started(this, item, taskerRequestId)',
                    'TaskerProfileEvents.finished(this, item, taskerRequestId, taskerSucceeded)',
@@ -104,7 +128,7 @@ def inspect(root: Path = ROOT) -> dict:
                    'ProfileQueueItem item = getQueueItem(intent)',
                    'profileManager.applyProfile(item.getState(), mProgressHandler)'):
         if marker not in service: errors.append('profile-service observation hook missing: '+marker)
-    return {'status':'PASS' if not errors else 'FAIL', 'errors':errors, 'phase':'AMT-02-R2C', 'source_only':True}
+    return {'status':'PASS' if not errors else 'FAIL', 'errors':errors, 'phase':'AMT-02-R2D', 'source_only':True}
 
 
 def main() -> int:

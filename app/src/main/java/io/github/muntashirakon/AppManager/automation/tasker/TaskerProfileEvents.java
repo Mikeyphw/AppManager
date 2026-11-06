@@ -10,6 +10,12 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
 import java.security.SecureRandom;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -23,6 +29,7 @@ import io.github.muntashirakon.AppManager.profiles.ProfileQueueItem;
 public final class TaskerProfileEvents {
     private static final String STORE = "tasker_profile_observations_v1";
     private static final long EVENT_TTL = 2 * 60 * 1000L;
+    private static final int PROFILE_MAX = 128;
     private static final SecureRandom RANDOM = new SecureRandom();
     public static final String EXTRA_REQUEST_ID = "am.tasker.request_id";
 
@@ -42,27 +49,45 @@ public final class TaskerProfileEvents {
 
     public static void queued(Context context, ProfileQueueItem item, String id) {
         try {
+            String p = profilePrefix(item.getProfileId());
             store(context).edit().putString("request", id).putString("profile", item.getProfileId())
-                    .putString("state", item.getState()).putString("status", "queued").commit();
+                    .putString("state", item.getState()).putString("status", "queued")
+                    .putString(p + "profile", item.getProfileId()).putString(p + "request", id)
+                    .putString(p + "state", item.getState()).putString(p + "status", "queued")
+                    .putBoolean(p + "running", false).putLong(p + "time", System.currentTimeMillis()).commit();
+            pruneProfileHistory(context);
         } catch (RuntimeException ignored) { }
     }
 
     public static void dispatchFailed(Context context, String id, String profile, String state) {
         try {
-            store(context).edit().putString("request", id).putString("profile", profile)
-                    .putString("state", state).putString("status", "failed")
+            String p = TaskerPluginWire.validProfile(profile) && !profile.startsWith("%")
+                    ? profilePrefix(profile) : null;
+            SharedPreferences.Editor edit = store(context).edit().putString("request", id)
+                    .putString("profile", profile).putString("state", state).putString("status", "failed")
                     .putBoolean("running", false)
                     .putString("terminal_status", "failed").putString("terminal_request", id)
-                    .putString("terminal_profile", profile).putString("terminal_state", state).commit();
+                    .putString("terminal_profile", profile).putString("terminal_state", state);
+            if (p != null) edit.putString(p + "profile", profile).putString(p + "request", id)
+                    .putString(p + "state", state).putString(p + "status", "failed")
+                    .putBoolean(p + "running", false).putString(p + "terminal_status", "failed")
+                    .putString(p + "terminal_request", id).putString(p + "terminal_state", state)
+                    .putLong(p + "time", System.currentTimeMillis());
+            edit.commit();
+            pruneProfileHistory(context);
             requestStateUpdate(context);
         } catch (RuntimeException ignored) { }
     }
 
     public static void started(Context context, ProfileQueueItem item, String id) {
         try {
+            String p = profilePrefix(item.getProfileId());
             store(context).edit().putString("request", id).putString("profile", item.getProfileId())
                     .putString("state", item.getState()).putString("status", "running")
-                    .putBoolean("running", true).commit();
+                    .putBoolean("running", true)
+                    .putString(p + "profile", item.getProfileId()).putString(p + "request", id)
+                    .putString(p + "state", item.getState()).putString(p + "status", "running")
+                    .putBoolean(p + "running", true).putLong(p + "time", System.currentTimeMillis()).commit();
             publish(context, "event.started", id, item);
             requestStateUpdate(context);
         } catch (RuntimeException ignored) { }
@@ -71,39 +96,73 @@ public final class TaskerProfileEvents {
     public static void finished(Context context, ProfileQueueItem item, String id, boolean success) {
         try {
             String status = success ? "success" : "failed";
+            String p = profilePrefix(item.getProfileId());
             store(context).edit().putString("request", id).putString("profile", item.getProfileId())
                     .putString("state", item.getState()).putString("status", status)
                     .putBoolean("running", false)
                     .putString("terminal_status", status).putString("terminal_request", id)
                     .putString("terminal_profile", item.getProfileId())
-                    .putString("terminal_state", item.getState()).commit();
+                    .putString("terminal_state", item.getState())
+                    .putString(p + "profile", item.getProfileId()).putString(p + "request", id)
+                    .putString(p + "state", item.getState()).putString(p + "status", status)
+                    .putBoolean(p + "running", false).putString(p + "terminal_status", status)
+                    .putString(p + "terminal_request", id).putString(p + "terminal_state", item.getState())
+                    .putLong(p + "time", System.currentTimeMillis()).commit();
+            pruneProfileHistory(context);
             publish(context, success ? "event.success" : "event.failed", id, item);
             requestStateUpdate(context);
         } catch (RuntimeException ignored) { }
     }
 
+    /** The legacy no-filter query still reports the most recent global operation. */
     @NonNull public static Bundle snapshot(Context context) {
+        return snapshot(context, null);
+    }
+
+    @NonNull public static Bundle snapshot(Context context, @Nullable String selectedProfile) {
         SharedPreferences pref = store(context);
-        return TaskerPluginWire.variables(pref.getString("request", ""),
+        if (selectedProfile == null) return TaskerPluginWire.variables(pref.getString("request", ""),
                 pref.getString("profile", ""), pref.getString("state", ""),
                 pref.getString("status", "unknown"), "");
+        String p = profilePrefix(selectedProfile);
+        return TaskerPluginWire.variables(pref.getString(p + "request", ""), selectedProfile,
+                pref.getString(p + "state", ""), pref.getString(p + "status", "unknown"), "");
     }
 
     @NonNull public static Bundle lastTerminal(Context context) {
+        return lastTerminal(context, null);
+    }
+
+    @NonNull public static Bundle lastTerminal(Context context, @Nullable String selectedProfile) {
         SharedPreferences pref = store(context);
-        return TaskerPluginWire.variables(pref.getString("terminal_request", ""),
+        if (selectedProfile == null) return TaskerPluginWire.variables(pref.getString("terminal_request", ""),
                 pref.getString("terminal_profile", ""), pref.getString("terminal_state", ""),
                 pref.getString("terminal_status", "unknown"), "");
+        String p = profilePrefix(selectedProfile);
+        return TaskerPluginWire.variables(pref.getString(p + "terminal_request", ""), selectedProfile,
+                pref.getString(p + "terminal_state", ""), pref.getString(p + "terminal_status", "unknown"), "");
     }
 
     public static boolean stateMatches(Context context, String requested) {
+        return stateMatches(context, requested, null);
+    }
+
+    public static boolean stateMatches(Context context, String requested, @Nullable String selectedProfile) {
         SharedPreferences pref = store(context);
-        if ("state.running".equals(requested)) return pref.getBoolean("running", false);
-        if ("state.success".equals(requested)) return "success".equals(pref.getString("terminal_status", ""));
-        return "state.failed".equals(requested) && "failed".equals(pref.getString("terminal_status", ""));
+        String p = selectedProfile == null ? "" : profilePrefix(selectedProfile);
+        if (selectedProfile != null && !selectedProfile.equals(pref.getString(p + "profile", ""))) return false;
+        if ("state.running".equals(requested)) return pref.getBoolean(p + "running", false);
+        if ("state.success".equals(requested)) return "success".equals(pref.getString(
+                p + "terminal_status", ""));
+        return "state.failed".equals(requested) && "failed".equals(pref.getString(p + "terminal_status", ""));
     }
 
     @Nullable public static Bundle matchingEvent(Context context, int messageId, String requested) {
+        return matchingEvent(context, messageId, requested, null);
+    }
+
+    @Nullable public static Bundle matchingEvent(Context context, int messageId, String requested,
+                                                   @Nullable String selectedProfile) {
         if (messageId <= 0 || requested == null || !requested.startsWith("event.")) return null;
         SharedPreferences pref = store(context);
         String key = "event." + messageId + ".";
@@ -111,9 +170,46 @@ public final class TaskerProfileEvents {
         long elapsed = System.currentTimeMillis() - time;
         if (time <= 0 || elapsed < 0 || elapsed > EVENT_TTL) return null;
         if (!requested.equals(pref.getString(key + "type", ""))) return null;
+        String actualProfile = pref.getString(key + "profile", "");
+        if (selectedProfile != null && !selectedProfile.equals(actualProfile)) return null;
         return TaskerPluginWire.variables(pref.getString(key + "request", ""),
-                pref.getString(key + "profile", ""), pref.getString(key + "state", ""),
+                actualProfile, pref.getString(key + "state", ""),
                 requested.substring("event.".length()), "");
+    }
+
+    private static String profilePrefix(String profileId) {
+        // Hash IDs instead of using path-like values as SharedPreferences keys.
+        try {
+            byte[] hash = MessageDigest.getInstance("SHA-256").digest(
+                    profileId.getBytes(StandardCharsets.UTF_8));
+            StringBuilder output = new StringBuilder("profile.");
+            for (byte b : hash) {
+                output.append(Character.forDigit((b >>> 4) & 15, 16));
+                output.append(Character.forDigit(b & 15, 16));
+            }
+            return output.append('.').toString();
+        } catch (NoSuchAlgorithmException error) { throw new IllegalStateException(error); }
+    }
+
+    private static void pruneProfileHistory(Context context) {
+        // Bound persistent profile snapshots; the event journal has its own TTL.
+        SharedPreferences pref = store(context);
+        List<Map.Entry<String, Long>> timestamps = new ArrayList<>();
+        for (Map.Entry<String, ?> entry : pref.getAll().entrySet()) {
+            if (!entry.getKey().startsWith("profile.") || !entry.getKey().endsWith(".time")
+                    || !(entry.getValue() instanceof Long)) continue;
+            timestamps.add(new java.util.AbstractMap.SimpleImmutableEntry<>(
+                    entry.getKey().substring(0, entry.getKey().length() - 4), (Long) entry.getValue()));
+        }
+        if (timestamps.size() <= PROFILE_MAX) return;
+        timestamps.sort(Comparator.comparingLong(Map.Entry::getValue));
+        SharedPreferences.Editor edit = pref.edit();
+        for (int i = 0; i < timestamps.size() - PROFILE_MAX; i++) {
+            String p = timestamps.get(i).getKey();
+            for (String suffix : new String[] {"profile", "request", "state", "status", "running",
+                    "terminal_status", "terminal_request", "terminal_state", "time"}) edit.remove(p + suffix);
+        }
+        edit.apply();
     }
 
     private static void publish(Context context, String type, String id, ProfileQueueItem item) {

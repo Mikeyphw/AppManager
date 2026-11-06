@@ -20,20 +20,21 @@ public final class TaskerConditionReceiver extends BroadcastReceiver {
         }
         try {
             Bundle config = TaskerPluginWire.fromIntent(intent);
-            if (config == null || config.size() > 3 || config.getInt(TaskerPluginWire.KEY_VERSION, -1) != 1
+            if (!TaskerPluginWire.validConditionConfiguration(config)
                     || !TaskerAccess.valid(context, config.getString(TaskerPluginWire.KEY_TOKEN))) return;
             String requested = config.getString(TaskerPluginWire.KEY_MODE);
             if (requested == null) return;
+            String profileFilter = config.getString(TaskerPluginWire.KEY_PROFILE);
             Bundle output;
             if (requested.startsWith("state.")) {
-                if (!TaskerProfileEvents.stateMatches(context, requested)) return;
+                if (!TaskerProfileEvents.stateMatches(context, requested, profileFilter)) return;
                 output = "state.running".equals(requested)
-                        ? TaskerProfileEvents.snapshot(context) : TaskerProfileEvents.lastTerminal(context);
+                        ? TaskerProfileEvents.snapshot(context, profileFilter) : TaskerProfileEvents.lastTerminal(context, profileFilter);
             } else if (requested.startsWith("event.")) {
                 Bundle pass = intent.getBundleExtra(TaskerPluginWire.EXTRA_PASS_THROUGH);
                 if (pass == null) return; // Never replay a prior event on Tasker startup.
                 int messageId = pass.getInt(TaskerPluginWire.EXTRA_MESSAGE_ID, -1);
-                output = TaskerProfileEvents.matchingEvent(context, messageId, requested);
+                output = TaskerProfileEvents.matchingEvent(context, messageId, requested, profileFilter);
                 if (output == null) return;
             } else return;
             if (isOrderedBroadcast()) {

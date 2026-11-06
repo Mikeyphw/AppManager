@@ -35,6 +35,11 @@ public final class TaskerPluginWire {
     public static final String KEY_PROFILE = "am.profile";
     public static final String KEY_STATE = "am.state";
     public static final String KEY_WAIT = "am.wait";
+    // Tasker replaces the value of am.profile in the saved Bundle on each fire.
+    public static final String KEY_DYNAMIC = "am.dynamic";
+    public static final String EXTRA_VARIABLE_REPLACE_KEYS =
+            "net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS";
+    public static final int CAPABILITY_VARIABLE_REPLACEMENT = 8;
     public static final String EXTRA_HOST_CAPABILITIES = "net.dinglisch.android.tasker.extras.HOST_CAPABILITIES";
     public static final String EXTRA_TIMEOUT = "net.dinglisch.android.tasker.extras.REQUESTED_TIMEOUT";
     public static final String EXTRA_COMPLETION = "net.dinglisch.android.tasker.extras.COMPLETION_INTENT";
@@ -78,6 +83,13 @@ public final class TaskerPluginWire {
     @NonNull
     public static Bundle configuration(String mode, @Nullable String profile, @Nullable String state,
                                        @NonNull String accessToken, boolean waitForCompletion) {
+        return configuration(mode, profile, state, accessToken, waitForCompletion, false);
+    }
+
+    @NonNull
+    public static Bundle configuration(String mode, @Nullable String profile, @Nullable String state,
+                                       @NonNull String accessToken, boolean waitForCompletion,
+                                       boolean dynamicProfile) {
         Bundle out = new Bundle();
         out.putInt(KEY_VERSION, VERSION);
         out.putString(KEY_TOKEN, accessToken);
@@ -85,21 +97,49 @@ public final class TaskerPluginWire {
         if (profile != null) out.putString(KEY_PROFILE, profile);
         if (state != null) out.putString(KEY_STATE, state);
         if (waitForCompletion && MODE_APPLY.equals(mode)) out.putBoolean(KEY_WAIT, true);
+        if (dynamicProfile && MODE_APPLY.equals(mode)) out.putBoolean(KEY_DYNAMIC, true);
         return out;
     }
 
+    /** A single complete Tasker variable, not a shell-like expression or path. */
+    public static boolean validVariableReference(@Nullable String candidate) {
+        return candidate != null && candidate.matches("%[A-Za-z][A-Za-z0-9_]{0,63}");
+    }
+
     public static boolean validConfiguration(@Nullable Bundle value) {
-        if (value == null || value.size() > 6 || value.getInt(KEY_VERSION, -1) != VERSION) return false;
+        if (value == null || value.size() > 7 || value.getInt(KEY_VERSION, -1) != VERSION) return false;
         for (String key : value.keySet()) {
             if (!KEY_VERSION.equals(key) && !KEY_TOKEN.equals(key) && !KEY_MODE.equals(key)
-                    && !KEY_PROFILE.equals(key) && !KEY_STATE.equals(key) && !KEY_WAIT.equals(key)) return false;
+                    && !KEY_PROFILE.equals(key) && !KEY_STATE.equals(key) && !KEY_WAIT.equals(key)
+                    && !KEY_DYNAMIC.equals(key)) return false;
         }
         String mode = value.getString(KEY_MODE);
         if (MODE_STATUS.equals(mode)) return !value.containsKey(KEY_PROFILE) && !value.containsKey(KEY_STATE)
-                && !value.containsKey(KEY_WAIT);
+                && !value.containsKey(KEY_WAIT) && !value.containsKey(KEY_DYNAMIC);
         if (value.containsKey(KEY_WAIT) && !(value.get(KEY_WAIT) instanceof Boolean)) return false;
-        return MODE_APPLY.equals(mode) && validProfile(value.getString(KEY_PROFILE))
+        if (value.containsKey(KEY_DYNAMIC) && !(value.get(KEY_DYNAMIC) instanceof Boolean)) return false;
+        if (!MODE_APPLY.equals(mode)) return false;
+        String profile = value.getString(KEY_PROFILE);
+        boolean dynamic = value.getBoolean(KEY_DYNAMIC, false);
+        // The editor stores a variable reference; the Tasker host substitutes a
+        // concrete profile ID before firing. Both forms must be valid, and the
+        // receiver separately rejects an unresolved '%' reference.
+        return (validProfile(profile) || (dynamic && validVariableReference(profile)))
                 && (STATE_ON.equals(value.getString(KEY_STATE)) || STATE_OFF.equals(value.getString(KEY_STATE)));
+    }
+
+    /** Conditions never allow variable substitution or unrelated Action flags. */
+    public static boolean validConditionConfiguration(@Nullable Bundle value) {
+        if (value == null || value.size() > 4 || value.getInt(KEY_VERSION, -1) != VERSION) return false;
+        for (String key : value.keySet()) {
+            if (!KEY_VERSION.equals(key) && !KEY_TOKEN.equals(key) && !KEY_MODE.equals(key)
+                    && !KEY_PROFILE.equals(key)) return false;
+        }
+        String mode = value.getString(KEY_MODE);
+        if (!"event.started".equals(mode) && !"event.success".equals(mode)
+                && !"event.failed".equals(mode) && !"state.running".equals(mode)
+                && !"state.success".equals(mode) && !"state.failed".equals(mode)) return false;
+        return !value.containsKey(KEY_PROFILE) || validProfile(value.getString(KEY_PROFILE));
     }
 
     @Nullable
@@ -120,6 +160,11 @@ public final class TaskerPluginWire {
         Intent output = new Intent();
         output.putExtra(EXTRA_BUNDLE, configuration);
         output.putExtra(EXTRA_BLURB, blurb);
+        if (configuration.getBoolean(KEY_DYNAMIC, false)) {
+            // Official Locale/Tasker protocol: space-delimited Bundle key names
+            // passed in the edit result's outer Intent extras.
+            output.putExtra(EXTRA_VARIABLE_REPLACE_KEYS, KEY_PROFILE);
+        }
         if (hostSupportsCompletion && configuration.getBoolean(KEY_WAIT, false)) {
             output.putExtra(EXTRA_TIMEOUT, COMPLETION_TIMEOUT_MS);
         }
