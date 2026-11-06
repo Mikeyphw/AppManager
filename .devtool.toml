@@ -1,0 +1,147 @@
+# App Manager — Devtool consumer configuration (AMT-00).
+# Devtool is the execution authority. Do not run Gradle on native Termux.
+# Android builds, unit tests, lint, and APK collection run on GitHub Actions.
+
+[project]
+runner = "android"
+platform = "android"
+
+[workspace]
+default_target = "app"
+
+[workspace.groups]
+android = ["app"]
+
+[workspace.scheduler]
+parallel = false
+max_parallel_nodes = 2
+max_gradle_nodes = 1
+
+[targets.app]
+runner = "android"
+platform = "android"
+root = "."
+inputs = [
+  ".devtool.toml", "devtoolw", "devtoolw.cmd", "versions.gradle",
+  "settings.gradle", "build.gradle", "gradle.properties", "gradle/**",
+  "app/**", "server/**", "libserver/**", "hiddenapi/**", "libcore/**",
+  "libopenpgp/**", "docs/**", "schema/**", "scripts/**",
+  ".github/workflows/**"
+]
+outputs = ["**/build/**", "build/**", ".gradle/**"]
+
+[targets.app.android]
+variant = "debug"
+aapt2_provider = "auto"
+
+[targets.app.android.instrumentation]
+policy = "disabled"
+
+[targets.app.gradle]
+max_workers = 2
+parallel = false
+build_cache = true
+no_daemon = true
+structured_events = false
+fail_fast = true
+
+# Native Devtool Android runner tasks. The GitHub runner owns their execution.
+[targets.app.tasks]
+restore = ["help"]
+build = [":app:assembleDebug"]
+test = ["test"]
+lint = [":app:lintDebug"]
+package = ["packageDebugUniversalApk"]
+clean = ["clean"]
+
+[targets.app.artifacts]
+output_directory = "app/build/outputs/apk/debug"
+required = false
+verify = false
+
+# Keep repository-specific source contracts as a target-local job, not an
+# unrelated shell wrapper that bypasses Devtool's workflow/EXO authority.
+[targets.app.jobs.source_contract]
+runner = "command"
+root = "."
+command = ["python3", "scripts/devtool/check_contract.py", "--check"]
+inputs = [
+  ".devtool.toml", "devtoolw", "devtoolw.cmd", "versions.gradle",
+  "settings.gradle", "app/build.gradle", "gradle/wrapper/gradle-wrapper.properties",
+  "scripts/devtool/check_contract.py", ".github/workflows/devtool-tasker-ci.yml"
+]
+outputs = []
+
+[targets.app.workflows]
+source-check = ["job:source_contract"]
+# Hosted-only full gate. Do not invoke on Termux.
+ci = ["job:source_contract", "runner:android#build", "runner:android#test", "runner:android#lint"]
+
+# Wrapper contract is intentionally thin: no second scheduler and no local
+# command that silently builds Android from Termux. Hosted CI is explicit.
+[wrapper]
+schema = 2
+default_command = "source-check"
+
+[wrapper.commands.source-check]
+description = "Run App Manager's source-only Devtool integration contract"
+workflow = "source-check"
+target = "app"
+
+# Read-only inspection and doctor are CLI commands, not canonical wrapper
+# actions. They MUST be called via `devtool --repo "$PWD" ...`, never as
+# `devtoolw inspect` / `devtoolw doctor` (rejected by Devtool schema 2).
+
+# Explicitly named hosted-only commands. These use the native Devtool GitHub
+# Actions dispatch API; --yes is mandatory and source HEAD is checked.
+[wrapper.commands.ci-build]
+description = "Dispatch Android debug APK build on GitHub Actions"
+devtool = "actions"
+[wrapper.commands.ci-build.actions]
+operation = "dispatch"
+workflow_id = "devtool-tasker-ci.yml"
+ref = "feature/tasker-automation"
+inputs = { mode = "build" }
+[wrapper.commands.ci-build.options.yes]
+type = "boolean"
+description = "Explicitly approve GitHub workflow dispatch"
+command_argv = ["--yes"]
+
+[wrapper.commands.ci-test]
+description = "Dispatch Android unit tests on GitHub Actions"
+devtool = "actions"
+[wrapper.commands.ci-test.actions]
+operation = "dispatch"
+workflow_id = "devtool-tasker-ci.yml"
+ref = "feature/tasker-automation"
+inputs = { mode = "test" }
+[wrapper.commands.ci-test.options.yes]
+type = "boolean"
+description = "Explicitly approve GitHub workflow dispatch"
+command_argv = ["--yes"]
+
+[wrapper.commands.ci-lint]
+description = "Dispatch Android lint on GitHub Actions"
+devtool = "actions"
+[wrapper.commands.ci-lint.actions]
+operation = "dispatch"
+workflow_id = "devtool-tasker-ci.yml"
+ref = "feature/tasker-automation"
+inputs = { mode = "lint" }
+[wrapper.commands.ci-lint.options.yes]
+type = "boolean"
+description = "Explicitly approve GitHub workflow dispatch"
+command_argv = ["--yes"]
+
+[wrapper.commands.ci-full]
+description = "Dispatch source/Gradle build, test and lint on GitHub Actions"
+devtool = "actions"
+[wrapper.commands.ci-full.actions]
+operation = "dispatch"
+workflow_id = "devtool-tasker-ci.yml"
+ref = "feature/tasker-automation"
+inputs = { mode = "full" }
+[wrapper.commands.ci-full.options.yes]
+type = "boolean"
+description = "Explicitly approve GitHub workflow dispatch"
+command_argv = ["--yes"]
