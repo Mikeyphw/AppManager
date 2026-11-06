@@ -1,0 +1,861 @@
+{
+  "schema": 2,
+  "source": {
+    "repository": "Mikeyphw/AppManager",
+    "ref": "3e82aff00b18fc2f1d7213b61cd6274a9285c39d",
+    "workflow_run": 42266028816,
+    "lint_task": ":app:lintDebug",
+    "archive_name": "appmanager-lint-report-42266028816-1",
+    "xml_sha256": "2fc036f9ecb06e82c569df84e37557bb6559716a45cb943cfdf6e95b49acad34"
+  },
+  "expected_error_count": 121,
+  "findings": [
+    [
+      "AppCompatResource",
+      "app/src/main/res/menu/activity_virus_total_actions.xml",
+      7,
+      9,
+      "Should use `app:showAsAction` with the appcompat library with `xmlns:app=\"http://schemas.android.com/apk/res-auto\"`"
+    ],
+    [
+      "AppCompatResource",
+      "app/src/main/res/menu/activity_virus_total_actions.xml",
+      11,
+      9,
+      "Should use `app:showAsAction` with the appcompat library with `xmlns:app=\"http://schemas.android.com/apk/res-auto\"`"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      327,
+      17,
+      "At least one `host` must be specified"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      331,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      334,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      336,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      338,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      340,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      342,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      344,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      347,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      350,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      353,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      356,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      359,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      362,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      365,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      368,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      371,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      374,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      377,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      380,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      383,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      386,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      389,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      392,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      395,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      398,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      401,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      404,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      407,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      410,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      413,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      416,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      419,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      422,
+      44,
+      "pathPattern does not support `?` as a Regex character"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      804,
+      13,
+      "Activity supporting ACTION_VIEW is not set as BROWSABLE"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      1279,
+      17,
+      "At least one `host` must be specified"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      1279,
+      17,
+      "At least one `scheme` must be specified"
+    ],
+    [
+      "AppLinkUrlError",
+      "app/src/main/AndroidManifest.xml",
+      1478,
+      17,
+      "At least one `host` must be specified"
+    ],
+    [
+      "ByteOrderMark",
+      "app/src/main/res/values-lv/strings.xml",
+      102,
+      295,
+      "Found byte-order-mark in the middle of a file"
+    ],
+    [
+      "ByteOrderMark",
+      "app/src/main/res/values-lv/strings.xml",
+      116,
+      268,
+      "Found byte-order-mark in the middle of a file"
+    ],
+    [
+      "ForegroundServiceType",
+      "app/src/main/java/io/github/muntashirakon/AppManager/adb/AdbPairingService.java",
+      174,
+      23,
+      "To call `Service.startForeground()`, the `<service>` element of manifest file must have the `foregroundServiceType` attribute specified"
+    ],
+    [
+      "ForegroundServiceType",
+      "app/src/main/java/io/github/muntashirakon/AppManager/adb/AdbPairingService.java",
+      215,
+      23,
+      "To call `Service.startForeground()`, the `<service>` element of manifest file must have the `foregroundServiceType` attribute specified"
+    ],
+    [
+      "ForegroundServiceType",
+      "app/src/main/java/io/github/muntashirakon/AppManager/scanner/vt/VtScanService.java",
+      83,
+      9,
+      "To call `Service.startForeground()`, the `<service>` element of manifest file must have the `foregroundServiceType` attribute specified"
+    ],
+    [
+      "ForegroundServiceType",
+      "app/src/main/java/io/github/muntashirakon/AppManager/viewer/audio/AudioPlayerService.java",
+      743,
+      17,
+      "To call `Service.startForeground()`, the `<service>` element of manifest file must have the `foregroundServiceType` attribute specified"
+    ],
+    [
+      "ForegroundServiceType",
+      "app/src/main/java/io/github/muntashirakon/AppManager/viewer/audio/AudioPlayerService.java",
+      745,
+      17,
+      "To call `Service.startForeground()`, the `<service>` element of manifest file must have the `foregroundServiceType` attribute specified"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/backup_rules.xml",
+      3,
+      38,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/backup_rules.xml",
+      4,
+      42,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/backup_rules.xml",
+      5,
+      42,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/backup_rules.xml",
+      15,
+      38,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/backup_rules.xml",
+      16,
+      42,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/backup_rules.xml",
+      17,
+      42,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/full_backup_rules.xml",
+      2,
+      34,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/full_backup_rules.xml",
+      3,
+      38,
+      "`.` is not in an included path"
+    ],
+    [
+      "FullBackupContent",
+      "app/src/main/res/xml/full_backup_rules.xml",
+      4,
+      38,
+      "`.` is not in an included path"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_audio_player.xml",
+      131,
+      17,
+      "Hardcoded string \"1x\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      30,
+      17,
+      "Hardcoded string \"Owner\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      37,
+      17,
+      "Hardcoded string \"Group\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      44,
+      17,
+      "Hardcoded string \"Others\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      60,
+      17,
+      "Hardcoded string \"Read\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      91,
+      17,
+      "Hardcoded string \"Write\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      122,
+      17,
+      "Hardcoded string \"Execute\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      148,
+      9,
+      "Hardcoded string \"set-user-ID bit\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      155,
+      9,
+      "Hardcoded string \"set-group-ID bit\", should use `@string` resource"
+    ],
+    [
+      "HardcodedText",
+      "app/src/main/res/layout/dialog_change_file_mode.xml",
+      162,
+      9,
+      "Hardcoded string \"sticky bit\", should use `@string` resource"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      105,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      147,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      320,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      326,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      349,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      354,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      359,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      364,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      429,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      434,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      439,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      444,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      449,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      454,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      459,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      472,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      522,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      527,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      587,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      592,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      598,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      603,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      608,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      613,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      618,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      623,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      628,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      638,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      643,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      648,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      655,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      660,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "MissingQuantity",
+      "app/src/main/res/values-cs-rCZ/strings.xml",
+      666,
+      5,
+      "For locale \"cs\" (Czech) the following quantity should also be defined: `many` (e.g. \"10.0 dne\")"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/compat/ActivityManagerCompat.java",
+      81,
+      41,
+      "Call requires API level 23 (current min is 21): `launchAssist`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      153,
+      28,
+      "Call requires API level 26 (current min is 21): `isEnabled`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      153,
+      51,
+      "Call requires API level 26 (current min is 21): `isEnabled`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      154,
+      32,
+      "Call requires API level 26 (current min is 21): `isMutable`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      154,
+      55,
+      "Call requires API level 26 (current min is 21): `isMutable`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      155,
+      32,
+      "Call requires API level 26 (current min is 21): `isFabricated`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      155,
+      58,
+      "Call requires API level 26 (current min is 21): `isFabricated`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      156,
+      47,
+      "Call requires API level 26 (current min is 21): `getReadableState`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      156,
+      75,
+      "Call requires API level 26 (current min is 21): `getReadableState`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      157,
+      47,
+      "Call requires API level 26 (current min is 21): `getCategory`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      157,
+      70,
+      "Call requires API level 26 (current min is 21): `getCategory`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      158,
+      32,
+      "Call requires API level 28 (current min is 21): `getPriority`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/AppDetailsOverlaysFragment.java",
+      158,
+      57,
+      "Call requires API level 28 (current min is 21): `getPriority`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/utils/ArrayUtils.java",
+      611,
+      13,
+      "Call requires API level 23 (current min is 21): `android.util.ArraySet#remove`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/utils/ArrayUtils.java",
+      612,
+      17,
+      "Call requires API level 23 (current min is 21): `android.util.ArraySet#isEmpty`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/viewer/font/FontLoadController.java",
+      112,
+      44,
+      "Call requires API level 26 (current min is 21): `new android.graphics.Typeface.Builder`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/viewer/font/FontLoadController.java",
+      114,
+      29,
+      "Call requires API level 26 (current min is 21): `android.graphics.Typeface.Builder#setTtcIndex`"
+    ],
+    [
+      "NewApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/viewer/font/FontLoadController.java",
+      116,
+      45,
+      "Call requires API level 26 (current min is 21): `android.graphics.Typeface.Builder#build`"
+    ],
+    [
+      "RecyclerView",
+      "app/src/main/java/io/github/muntashirakon/AppManager/viewer/pdf/PdfPageAdapter.java",
+      59,
+      62,
+      "Do not treat position as fixed; only use immediately and call `holder.getAdapterPosition()` to look it up later"
+    ],
+    [
+      "RestrictedApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/main/MainActivity.java",
+      560,
+      36,
+      "SearchAutoComplete can only be accessed from within the same library group prefix (referenced groupId=`androidx.appcompat` with prefix androidx from groupId=`AppManager`)"
+    ],
+    [
+      "RestrictedApi",
+      "app/src/main/java/io/github/muntashirakon/AppManager/misc/AdvancedSearchView.java",
+      80,
+      19,
+      "SearchAutoComplete can only be accessed from within the same library group prefix (referenced groupId=`androidx.appcompat` with prefix androidx from groupId=`AppManager`)"
+    ],
+    [
+      "WrongThread",
+      "app/src/main/java/io/github/muntashirakon/AppManager/details/info/AppInfoFragment.java",
+      740,
+      27,
+      "Method getContext must be called from the UI thread, currently inferred thread is worker thread"
+    ]
+  ]
+}
