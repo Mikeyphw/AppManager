@@ -116,11 +116,48 @@ jobs:
           test -x "$JAVA_HOME/bin/java"
           "$JAVA_HOME/bin/java" -version
           devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app inspect
+          # Lint legacy issue snapshot is pinned to run 42255012506 and is
+          # checked against the *fresh* lint XML. No global lint suppression.
+          # Devtool performs the Gradle work; historical upstream lint findings
+          # are acknowledged only when they exactly match the frozen snapshot.
+          run_guarded_devtool() {
+            local mode="$1"
+            shift
+            local xml="app/build/reports/lint-results-debug.xml"
+            local log="$RUNNER_TEMP/appmanager-devtool-${mode}.log"
+            rm -f -- "$xml"
+            set +e
+            "$@" 2>&1 | tee "$log"
+            local devtool_rc="${PIPESTATUS[0]}"
+            set -e
+            # Missing report or any new lint error fails closed.
+            python3 scripts/devtool/check_upstream_lint_baseline.py --report "$xml" --summary "$GITHUB_STEP_SUMMARY"
+            # Never waive an actual Gradle failure; the known Devtool reporting
+            # failure is distinct from Gradle's successful lintDebug task.
+            # Ensure lint itself (not an earlier build/test task) succeeded.
+            if ! awk '
+              /> Task :app:lintDebug/ { saw_lint=1; lint_ok=0 }
+              saw_lint && /Gradle result: success/ { lint_ok=1 }
+              END { exit !(saw_lint && lint_ok) }
+            ' "$log"; then
+              echo 'No successful hosted lintDebug execution; refusing legacy waiver' >&2
+              return 1
+            fi
+            if [[ "$mode" == full ]]; then
+              if ! grep -Eq 'Build[[:space:]]+Done' "$log" ||                  ! grep -Eq 'Run tests[[:space:]]+Done' "$log"; then
+                echo 'Hosted build/test stage did not complete; refusing legacy waiver' >&2
+                return 1
+              fi
+            fi
+            if (( devtool_rc != 0 )); then
+              echo '::warning::Devtool classified accepted upstream lint debt as failure; no new errors were found.'
+            fi
+          }
           case "$MODE" in
             build) devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app build ;;
             test)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app test ;;
-            lint)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app lint ;;
-            full)  devtool --repo "$PWD" --java-home "$JAVA_HOME" invoke --target app ci ;;
+            lint)  run_guarded_devtool lint devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app lint ;;
+            full)  run_guarded_devtool full devtool --repo "$PWD" --java-home "$JAVA_HOME" invoke --target app ci ;;
             *)     echo "Unsupported mode: $MODE" >&2; exit 2 ;;
           esac
       - name: Produce checksum manifest of debug APKs
@@ -140,4 +177,15 @@ jobs:
             app/build/outputs/apk/debug/**/*.apk
             devtool-apk-sha256.txt
           if-no-files-found: warn
+          retention-days: 7
+
+      - name: Upload hosted Android lint report and baseline audit
+        if: always() && (inputs.mode == 'lint' || inputs.mode == 'full' || github.event_name == 'pull_request')
+        uses: actions/upload-artifact@v4
+        with:
+          name: appmanager-lint-report-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            app/build/reports/lint-results-debug.xml
+            app/build/reports/lint-results-debug.html
+          if-no-files-found: error
           retention-days: 7

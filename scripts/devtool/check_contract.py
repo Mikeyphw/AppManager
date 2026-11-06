@@ -129,10 +129,21 @@ def inspect(root: Path = ROOT) -> dict[str, object]:
         ("inspect", 'devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app inspect'),
         ("build", 'build) devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app build ;;'),
         ("test", 'test)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app test ;;'),
-        ("lint", 'lint)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app lint ;;'),
-        ("full", 'full)  devtool --repo "$PWD" --java-home "$JAVA_HOME" invoke --target app ci ;;'),
+        ("lint", 'lint)  run_guarded_devtool lint devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app lint ;;'),
+        ("full", 'full)  run_guarded_devtool full devtool --repo "$PWD" --java-home "$JAVA_HOME" invoke --target app ci ;;'),
     ):
         require(invocation in workflow, f"hosted Devtool {mode} must use JAVA_HOME")
+    require('python3 scripts/devtool/check_upstream_lint_baseline.py --report "$xml"' in workflow,
+            "full hosted CI must run exact upstream lint baseline audit")
+    require('rm -f -- "$xml"' in workflow,
+            "hosted lint report must be freshly generated, not stale")
+    require('saw_lint && lint_ok' in workflow and 'Gradle result: success' in workflow,
+            "upstream lint waiver must require actual Android lint task success")
+    require('app/build/reports/lint-results-debug.xml' in workflow and
+            'Upload hosted Android lint report and baseline audit' in workflow,
+            "hosted lint reports must remain downloadable")
+    require((root / 'scripts/devtool/check_upstream_lint_baseline.py').is_file(),
+            "missing pinned upstream lint baseline verifier")
     require("android-actions/setup-android@v3" not in workflow, "legacy Android SDK action cannot be used")
     require("pull_request:" in workflow and "feature/tasker-automation" in workflow,
             "upstream-compatible CI triggers missing")
