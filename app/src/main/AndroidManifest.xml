@@ -1539,6 +1539,11 @@
             android:name=".profiles.ProfileApplierService"
             android:exported="false"
             android:foregroundServiceType="dataSync|specialUse" />
+        <!-- AMT-03: system-only JobScheduler binding protected by a signature permission. -->
+        <service
+            android:name=".automation.tasker.TaskerDispatchJobService"
+            android:permission="android.permission.BIND_JOB_SERVICE"
+            android:exported="true" />
         <service
             android:name=".logcat.LogcatRecordingService"
             android:exported="false"

@@ -49,13 +49,87 @@ public final class TaskerProfileEvents {
 
     public static void queued(Context context, ProfileQueueItem item, String id) {
         try {
-            String p = profilePrefix(item.getProfileId());
-            store(context).edit().putString("request", id).putString("profile", item.getProfileId())
-                    .putString("state", item.getState()).putString("status", "queued")
-                    .putString(p + "profile", item.getProfileId()).putString(p + "request", id)
-                    .putString(p + "state", item.getState()).putString(p + "status", "queued")
-                    .putBoolean(p + "running", false).putLong(p + "time", System.currentTimeMillis()).commit();
+            TaskerExecutionJournal journal = TaskerExecutionJournal.get(context);
+            // The journal is the execution authority. Hold its same monitor as
+            // claim/cancel so a late queued notification cannot revive a
+            // request already cancelled by another Tasker action.
+            synchronized (journal) {
+                TaskerExecutionJournal.Record current = journal.find(id);
+                if (current == null || !"queued".equals(current.status)) return;
+                String p = profilePrefix(item.getProfileId());
+                SharedPreferences pref = store(context);
+                SharedPreferences.Editor edit = pref.edit();
+                // Enqueuing B cannot mark running A idle, even when the two
+                // requests target the same profile.
+                if (!pref.getBoolean("running", false)) edit.putString("request", id)
+                        .putString("profile", item.getProfileId()).putString("state", item.getState())
+                        .putString("status", "queued").putBoolean("running", false);
+                if (!pref.getBoolean(p + "running", false)) edit.putString(p + "profile", item.getProfileId())
+                        .putString(p + "request", id).putString(p + "state", item.getState())
+                        .putString(p + "status", "queued").putBoolean(p + "running", false)
+                        .putLong(p + "time", System.currentTimeMillis());
+                edit.commit();
+                pruneProfileHistory(context);
+            }
+        } catch (RuntimeException ignored) { }
+    }
+
+    public static void cancelled(Context context, String id, String profile, String state) {
+        try {
+            String p = profilePrefix(profile);
+            SharedPreferences pref = store(context);
+            SharedPreferences.Editor edit = pref.edit()
+                    .putString("terminal_status", "cancelled")
+                    .putString("terminal_request", id)
+                    .putString("terminal_profile", profile)
+                    .putString("terminal_state", state)
+                    .putString(p + "profile", profile)
+                    .putString(p + "terminal_status", "cancelled")
+                    .putString(p + "terminal_request", id)
+                    .putString(p + "terminal_state", state)
+                    .putLong(p + "time", System.currentTimeMillis());
+            // A pending cancellation must not clear another operation's
+            // per-profile or global running state (even for the SAME profile).
+            if (!pref.getBoolean(p + "running", false)) edit.putString(p + "request", id)
+                    .putString(p + "state", state).putString(p + "status", "cancelled")
+                    .putBoolean(p + "running", false);
+            if (!pref.getBoolean("running", false)) edit.putString("request", id)
+                    .putString("profile", profile).putString("state", state)
+                    .putString("status", "cancelled").putBoolean("running", false);
+            edit.commit();
             pruneProfileHistory(context);
+            requestStateUpdate(context);
+        } catch (RuntimeException ignored) { }
+    }
+
+    /** Clear stale State observations when a prior process died mid-request.
+     * This never publishes a false success/failure Event: the actual package
+     * result is unknown and must remain explicit to Tasker. */
+    public static void recoveredInterrupted(Context context, String id, String profile, String state) {
+        try {
+            SharedPreferences pref = store(context);
+            SharedPreferences.Editor edit = pref.edit();
+            boolean changed = false;
+            if (id.equals(pref.getString("request", ""))) {
+                edit.putString("status", "interrupted").putBoolean("running", false)
+                        .putString("terminal_status", "interrupted")
+                        .putString("terminal_request", id).putString("terminal_profile", profile)
+                        .putString("terminal_state", state);
+                changed = true;
+            }
+            if (TaskerPluginWire.validProfile(profile) && !profile.startsWith("%")) {
+                String p = profilePrefix(profile);
+                if (id.equals(pref.getString(p + "request", ""))) {
+                    edit.putString(p + "status", "interrupted")
+                            .putBoolean(p + "running", false)
+                            .putString(p + "terminal_status", "interrupted")
+                            .putString(p + "terminal_request", id)
+                            .putString(p + "terminal_state", state)
+                            .putLong(p + "time", System.currentTimeMillis());
+                    changed = true;
+                }
+            }
+            if (changed && edit.commit()) requestStateUpdate(context);
         } catch (RuntimeException ignored) { }
     }
 
@@ -63,16 +137,25 @@ public final class TaskerProfileEvents {
         try {
             String p = TaskerPluginWire.validProfile(profile) && !profile.startsWith("%")
                     ? profilePrefix(profile) : null;
-            SharedPreferences.Editor edit = store(context).edit().putString("request", id)
-                    .putString("profile", profile).putString("state", state).putString("status", "failed")
-                    .putBoolean("running", false)
+            SharedPreferences pref = store(context);
+            SharedPreferences.Editor edit = pref.edit()
                     .putString("terminal_status", "failed").putString("terminal_request", id)
                     .putString("terminal_profile", profile).putString("terminal_state", state);
-            if (p != null) edit.putString(p + "profile", profile).putString(p + "request", id)
-                    .putString(p + "state", state).putString(p + "status", "failed")
-                    .putBoolean(p + "running", false).putString(p + "terminal_status", "failed")
-                    .putString(p + "terminal_request", id).putString(p + "terminal_state", state)
-                    .putLong(p + "time", System.currentTimeMillis());
+            // A failed queued request must not turn an unrelated running State
+            // false, including another request for the same profile.
+            if (!pref.getBoolean("running", false)) edit.putString("request", id)
+                    .putString("profile", profile).putString("state", state)
+                    .putString("status", "failed").putBoolean("running", false);
+            if (p != null) {
+                edit.putString(p + "profile", profile)
+                        .putString(p + "terminal_status", "failed")
+                        .putString(p + "terminal_request", id)
+                        .putString(p + "terminal_state", state)
+                        .putLong(p + "time", System.currentTimeMillis());
+                if (!pref.getBoolean(p + "running", false)) edit.putString(p + "request", id)
+                        .putString(p + "state", state).putString(p + "status", "failed")
+                        .putBoolean(p + "running", false);
+            }
             edit.commit();
             pruneProfileHistory(context);
             requestStateUpdate(context);

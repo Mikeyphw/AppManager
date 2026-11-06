@@ -21,6 +21,8 @@ import java.io.IOException;
 import io.github.muntashirakon.AppManager.BuildConfig;
 import io.github.muntashirakon.AppManager.automation.tasker.TaskerProfileEvents;
 import io.github.muntashirakon.AppManager.automation.tasker.TaskerCompletion;
+import io.github.muntashirakon.AppManager.automation.tasker.TaskerExecutionGate;
+import io.github.muntashirakon.AppManager.automation.tasker.TaskerExecutionJournal;
 import io.github.muntashirakon.AppManager.R;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsResultsActivity;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsService;
@@ -89,9 +91,18 @@ public class ProfileApplierService extends ForegroundService {
         if (item == null) {
             return;
         }
+        synchronized (TaskerExecutionGate.LOCK) {
+        boolean tracked = intent != null && intent.hasExtra(TaskerProfileEvents.EXTRA_REQUEST_ID);
+        String request = TaskerProfileEvents.requestId(intent);
+        TaskerExecutionJournal journal = tracked ? TaskerExecutionJournal.get(this) : null;
+        if (tracked) {
+            TaskerExecutionJournal.Record expected = journal.find(request);
+            if (expected == null || !item.getProfileId().equals(expected.profile)
+                    || !item.getState().equals(expected.state) || !journal.claim(request)) return;
+        } // Cancelled, mismatched, or already claimed requests never execute.
         boolean notify = intent.getBooleanExtra(EXTRA_NOTIFY, true);
         Path tempProfilePath = item.getTempProfilePath();
-        String taskerRequestId = TaskerProfileEvents.requestId(intent);
+        String taskerRequestId = request;
         TaskerProfileEvents.started(this, item, taskerRequestId);
         boolean taskerSucceeded = false;
         try {
@@ -101,15 +112,17 @@ public class ProfileApplierService extends ForegroundService {
             taskerSucceeded = true;
             OpHistoryManager.addHistoryItem(HISTORY_TYPE_PROFILE, item, true);
             sendNotification(item.getProfileName(), Activity.RESULT_OK, notify, profileManager.requiresRestart());
-        } catch (IOException e) {
+        } catch (IOException | RuntimeException e) {
             sendNotification(item.getProfileName(), Activity.RESULT_CANCELED, notify, false);
         } finally {
+            if (tracked) journal.complete(taskerRequestId, taskerSucceeded, "profile_apply_failed");
             TaskerProfileEvents.finished(this, item, taskerRequestId, taskerSucceeded);
             TaskerCompletion.finish(this, intent, taskerRequestId, item, taskerSucceeded);
             if (tempProfilePath != null) {
                 tempProfilePath.delete();
             }
         }
+        } // Serialized with scheduled Tasker execution.
     }
 
     @Override

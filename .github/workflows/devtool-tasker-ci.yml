@@ -44,6 +44,7 @@ jobs:
         run: |
           python3 scripts/devtool/check_contract.py --check
           python3 scripts/devtool/check_automation_contract.py --check
+          python3 scripts/devtool/check_amt03_contract.py --check
           python3 -m unittest discover -s scripts/devtool -p 'test_*.py' -v
           sh -n devtoolw
       - name: Verify upstream merge compatibility without changing the tree
@@ -188,4 +189,69 @@ jobs:
             app/build/reports/lint-results-debug.xml
             app/build/reports/lint-results-debug.html
           if-no-files-found: error
+          retention-days: 7
+
+
+  device-instrumentation:
+    name: AMT-03 Android instrumentation via Devtool emulator
+    needs: [source-contract]
+    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'full'
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - name: Install hosted Android SDK and pinned Devtool
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install 'platforms;android-36' 'build-tools;36.1.0' 'platform-tools' 'cmake;3.22.1'
+          git clone --no-checkout https://github.com/Mikeyphw/devtool.git "$RUNNER_TEMP/devtool-source"
+          git -C "$RUNNER_TEMP/devtool-source" checkout --detach bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
+          test "$(git -C "$RUNNER_TEMP/devtool-source" rev-parse HEAD)" = bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
+          python3 -m pip install "$RUNNER_TEMP/devtool-source"
+      - name: Run journal device instrumentation (no real profiles modified)
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: |
+            set -euo pipefail
+            : "${JAVA_HOME:?}"
+            python3 -m devtool.android_instrumentation "$PWD" --policy required               --device-serial emulator-5554 --runner androidx.test.runner.AndroidJUnitRunner               --class io.github.muntashirakon.AppManager.automation.tasker.TaskerJournalInstrumentedTest               --report "$RUNNER_TEMP/amt03-instrumentation.json"               2>&1 | tee "$RUNNER_TEMP/amt03-instrumentation.log"
+            python3 - <<'PYCHECK'
+            import json, pathlib, os
+            p = pathlib.Path(os.environ['RUNNER_TEMP']) / 'amt03-instrumentation.json'
+            assert p.is_file(), 'Devtool did not write Android instrumentation receipt'
+            r = json.loads(p.read_text())
+            assert r.get('status') in ('passed','success'), r
+            assert int(r.get('passed',0)) >= 2, r
+            assert int(r.get('failed',0)) == 0, r
+            print('AMT03_DEVICE_INSTRUMENTATION_PASS')
+            PYCHECK
+      - name: Upload instrumentation receipt and diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appmanager-amt03-instrumentation-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/amt03-instrumentation.json
+            ${{ runner.temp }}/amt03-instrumentation.log
+          if-no-files-found: warn
           retention-days: 7

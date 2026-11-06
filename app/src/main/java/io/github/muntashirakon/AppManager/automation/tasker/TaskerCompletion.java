@@ -85,4 +85,29 @@ public final class TaskerCompletion {
             // A Tasker callback must never change the outcome of the profile service.
         }
     }
+    /** Deliver a terminal result without a service Intent (cancel/job path). */
+    public static void finishWithStatus(Context context, @Nullable String callbackUri,
+                                        String requestId, String profileId, String state,
+                                        String status, String error) {
+        if (!validUri(callbackUri)) return;
+        try {
+            Intent reply = Intent.parseUri(callbackUri, Intent.URI_INTENT_SCHEME);
+            Bundle vars = TaskerPluginWire.variables(requestId, profileId,
+                    state == null ? "" : state, status, error);
+            reply.putExtra(TaskerPluginWire.EXTRA_RESULT_CODE,
+                    "success".equals(status) ? TaskerPluginWire.RESULT_OK : TaskerPluginWire.RESULT_FAILED);
+            reply.putExtra(TaskerPluginWire.EXTRA_VARIABLES, vars);
+            reply.setPackage(TaskerPluginWire.TASKER_PACKAGE);
+            String servicePackage = reply.getStringExtra(TaskerPluginWire.EXTRA_CALL_SERVICE_PACKAGE);
+            String service = reply.getStringExtra(TaskerPluginWire.EXTRA_CALL_SERVICE);
+            if (servicePackage != null && service != null) {
+                reply.setComponent(new ComponentName(servicePackage, service));
+                if (reply.getBooleanExtra(TaskerPluginWire.EXTRA_CALL_SERVICE_FOREGROUND, false)
+                        && Build.VERSION.SDK_INT >= 26) context.startForegroundService(reply);
+                else context.startService(reply);
+            } else context.sendBroadcast(reply);
+        } catch (URISyntaxException | RuntimeException ignored) {
+            // A Tasker callback cannot change an already committed outcome.
+        }
+    }
 }

@@ -26,13 +26,14 @@ import io.github.muntashirakon.AppManager.profiles.struct.BaseProfile;
 
 /** Shown directly inside Tasker's Plugin editor. No separate App Manager grant UI. */
 public final class TaskerActionEditActivity extends Activity {
-    private static final String[] ACTIONS = {"Apply profile", "Last profile result"};
+    private static final String[] ACTIONS = {"Apply profile", "Last profile result", "Recent execution history", "Cancel queued request"};
     private static final String[] STATES = {"On", "Off"};
     private final List<BaseProfile> profiles = new ArrayList<>();
     private Spinner operation;
     private Spinner profile;
     private Spinner profileSource;
     private EditText variable;
+    private EditText cancelRequest;
     private boolean canReplace;
     private Spinner state;
     private TextView feedback;
@@ -72,6 +73,17 @@ public final class TaskerActionEditActivity extends Activity {
         variable.setHint("%profile_id");
         variable.setTextSize(16);
         root.addView(variable);
+        cancelRequest = new EditText(this);
+        cancelRequest.setSingleLine(true);
+        cancelRequest.setTextSize(16);
+        cancelRequest.setHint("%am_request_id or 32-character request ID");
+        if (old != null) cancelRequest.setText(old.getString(TaskerPluginWire.KEY_REQUEST, ""));
+        cancelRequest.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { refresh(); }
+            @Override public void afterTextChanged(Editable value) { }
+        });
+        root.addView(cancelRequest);
         if (old != null && old.getBoolean(TaskerPluginWire.KEY_DYNAMIC, false)) {
             profileSource.setSelection(1);
             variable.setText(initialProfile);
@@ -103,7 +115,9 @@ public final class TaskerActionEditActivity extends Activity {
         footer.addView(save);
         root.addView(footer);
         setContentView(root);
-        operation.setSelection(TaskerPluginWire.MODE_STATUS.equals(previousMode) ? 1 : 0);
+        operation.setSelection(TaskerPluginWire.MODE_STATUS.equals(previousMode) ? 1 :
+                TaskerPluginWire.MODE_HISTORY.equals(previousMode) ? 2 :
+                TaskerPluginWire.MODE_CANCEL.equals(previousMode) ? 3 : 0);
         if (old != null && TaskerPluginWire.STATE_OFF.equals(old.getString(TaskerPluginWire.KEY_STATE))) {
             this.state.setSelection(1);
         }
@@ -161,14 +175,27 @@ public final class TaskerActionEditActivity extends Activity {
     private void refresh() {
         if (operation == null || profile == null || save == null || profileSource == null) return;
         boolean apply = operation.getSelectedItemPosition() == 0;
+        boolean cancel = operation.getSelectedItemPosition() == 3;
         boolean dynamic = apply && profileSource.getSelectedItemPosition() == 1;
+        String request = cancelRequest.getText().toString().trim();
+        boolean requestValid = TaskerPluginWire.validRequestId(request)
+                || (canReplace && TaskerPluginWire.validVariableReference(request));
         profileSource.setVisibility(apply ? View.VISIBLE : View.GONE);
         profile.setVisibility(apply && !dynamic ? View.VISIBLE : View.GONE);
         variable.setVisibility(dynamic ? View.VISIBLE : View.GONE);
+        cancelRequest.setVisibility(cancel ? View.VISIBLE : View.GONE);
         state.setVisibility(apply ? View.VISIBLE : View.GONE);
         waitForCompletion.setVisibility(apply && canWait ? View.VISIBLE : View.GONE);
         boolean validVariable = TaskerPluginWire.validVariableReference(variable.getText().toString().trim());
-        save.setEnabled(!apply || (dynamic ? canReplace && validVariable : !profiles.isEmpty()));
+        save.setEnabled(cancel ? requestValid : !apply || (dynamic ? canReplace && validVariable : !profiles.isEmpty()));
+        if (cancel) {
+            feedback.setText("Cancel a pending request by ID. Running work cannot be interrupted safely.");
+            return;
+        }
+        if (operation.getSelectedItemPosition() == 2) {
+            feedback.setText("Returns up to 20 recent requests in %am_history (JSON).");
+            return;
+        }
         feedback.setText(dynamic ? (canReplace
                 ? "Tasker substitutes the variable on each run. It must contain an existing profile ID."
                 : "This Tasker host does not advertise variable substitution.")
@@ -178,8 +205,10 @@ public final class TaskerActionEditActivity extends Activity {
     }
 
     private void save() {
-        String mode = operation.getSelectedItemPosition() == 0
-                ? TaskerPluginWire.MODE_APPLY : TaskerPluginWire.MODE_STATUS;
+        int choice = operation.getSelectedItemPosition();
+        String mode = choice == 0 ? TaskerPluginWire.MODE_APPLY :
+                choice == 1 ? TaskerPluginWire.MODE_STATUS :
+                choice == 2 ? TaskerPluginWire.MODE_HISTORY : TaskerPluginWire.MODE_CANCEL;
         boolean apply = TaskerPluginWire.MODE_APPLY.equals(mode);
         boolean dynamic = apply && profileSource.getSelectedItemPosition() == 1;
         BaseProfile selected = null;
@@ -204,8 +233,16 @@ public final class TaskerActionEditActivity extends Activity {
             String state = !apply ? null : (this.state.getSelectedItemPosition() == 1
                     ? TaskerPluginWire.STATE_OFF : TaskerPluginWire.STATE_ON);
             boolean wait = apply && canWait && waitForCompletion.isChecked();
+            String request = cancelRequest.getText().toString().trim();
+            if (TaskerPluginWire.MODE_CANCEL.equals(mode)) {
+                dynamic = TaskerPluginWire.validVariableReference(request);
+                if (!TaskerPluginWire.validRequestId(request) && !(dynamic && canReplace)) return;
+            }
             Bundle config = TaskerPluginWire.configuration(mode, profileId, state, token, wait, dynamic);
-            String blurb = !apply ? "App Manager · Last profile result" :
+            if (TaskerPluginWire.MODE_CANCEL.equals(mode)) config.putString(TaskerPluginWire.KEY_REQUEST, request);
+            String blurb = TaskerPluginWire.MODE_CANCEL.equals(mode) ? "App Manager · Cancel queued request" :
+                    TaskerPluginWire.MODE_HISTORY.equals(mode) ? "App Manager · Recent execution history" :
+                    !apply ? "App Manager · Last profile result" :
                     "App Manager · " + (dynamic ? profileId : selected.name) + " · " + state;
             setResult(RESULT_OK, TaskerPluginWire.editResult(config, blurb, canWait));
             finish();

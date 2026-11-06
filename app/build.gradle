@@ -14,6 +14,7 @@ android {
         applicationId 'io.github.muntashirakon.AppManager'
         minSdk min_sdk
         targetSdk target_sdk
+        testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         versionCode 451
         versionName "4.1.1"
         javaCompileOptions {
@@ -186,6 +187,9 @@ dependencies {
 
 //    debugImplementation 'com.squareup.leakcanary:leakcanary-android:2.9.1'
 
+    // AMT-03 hosted-only instrumentation; never compile on Termux.
+    androidTestImplementation "androidx.test:runner:1.6.2"
+    androidTestImplementation "androidx.test.ext:junit:1.2.1"
     // Espresso UI Testing
 //    androidTestImplementation "com.android.support.test.espresso:espresso-core:3.0.2"
     // Optional if you need to detect intents.

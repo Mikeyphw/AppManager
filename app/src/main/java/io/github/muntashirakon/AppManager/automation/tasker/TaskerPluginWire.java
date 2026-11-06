@@ -37,6 +37,9 @@ public final class TaskerPluginWire {
     public static final String KEY_WAIT = "am.wait";
     // Tasker replaces the value of am.profile in the saved Bundle on each fire.
     public static final String KEY_DYNAMIC = "am.dynamic";
+    public static final String KEY_REQUEST = "am.request";
+    public static final String MODE_CANCEL = "profile.cancel";
+    public static final String MODE_HISTORY = "profile.history";
     public static final String EXTRA_VARIABLE_REPLACE_KEYS =
             "net.dinglisch.android.tasker.extras.VARIABLE_REPLACE_KEYS";
     public static final int CAPABILITY_VARIABLE_REPLACEMENT = 8;
@@ -97,7 +100,7 @@ public final class TaskerPluginWire {
         if (profile != null) out.putString(KEY_PROFILE, profile);
         if (state != null) out.putString(KEY_STATE, state);
         if (waitForCompletion && MODE_APPLY.equals(mode)) out.putBoolean(KEY_WAIT, true);
-        if (dynamicProfile && MODE_APPLY.equals(mode)) out.putBoolean(KEY_DYNAMIC, true);
+        if (dynamicProfile && (MODE_APPLY.equals(mode) || MODE_CANCEL.equals(mode))) out.putBoolean(KEY_DYNAMIC, true);
         return out;
     }
 
@@ -107,15 +110,26 @@ public final class TaskerPluginWire {
     }
 
     public static boolean validConfiguration(@Nullable Bundle value) {
-        if (value == null || value.size() > 7 || value.getInt(KEY_VERSION, -1) != VERSION) return false;
+        if (value == null || value.size() > 8 || value.getInt(KEY_VERSION, -1) != VERSION) return false;
         for (String key : value.keySet()) {
             if (!KEY_VERSION.equals(key) && !KEY_TOKEN.equals(key) && !KEY_MODE.equals(key)
                     && !KEY_PROFILE.equals(key) && !KEY_STATE.equals(key) && !KEY_WAIT.equals(key)
-                    && !KEY_DYNAMIC.equals(key)) return false;
+                    && !KEY_DYNAMIC.equals(key) && !KEY_REQUEST.equals(key)) return false;
         }
         String mode = value.getString(KEY_MODE);
-        if (MODE_STATUS.equals(mode)) return !value.containsKey(KEY_PROFILE) && !value.containsKey(KEY_STATE)
-                && !value.containsKey(KEY_WAIT) && !value.containsKey(KEY_DYNAMIC);
+        if (MODE_STATUS.equals(mode) || MODE_HISTORY.equals(mode))
+            return !value.containsKey(KEY_PROFILE) && !value.containsKey(KEY_STATE)
+                    && !value.containsKey(KEY_WAIT) && !value.containsKey(KEY_DYNAMIC)
+                    && !value.containsKey(KEY_REQUEST);
+        if (MODE_CANCEL.equals(mode)) {
+            if (value.containsKey(KEY_PROFILE) || value.containsKey(KEY_STATE)
+                    || value.containsKey(KEY_WAIT) || !value.containsKey(KEY_REQUEST)) return false;
+            if (value.containsKey(KEY_DYNAMIC) && !(value.get(KEY_DYNAMIC) instanceof Boolean)) return false;
+            String id = value.getString(KEY_REQUEST);
+            return validRequestId(id) || (value.getBoolean(KEY_DYNAMIC, false)
+                    && validVariableReference(id));
+        }
+        if (value.containsKey(KEY_REQUEST)) return false;
         if (value.containsKey(KEY_WAIT) && !(value.get(KEY_WAIT) instanceof Boolean)) return false;
         if (value.containsKey(KEY_DYNAMIC) && !(value.get(KEY_DYNAMIC) instanceof Boolean)) return false;
         if (!MODE_APPLY.equals(mode)) return false;
@@ -126,6 +140,10 @@ public final class TaskerPluginWire {
         // receiver separately rejects an unresolved '%' reference.
         return (validProfile(profile) || (dynamic && validVariableReference(profile)))
                 && (STATE_ON.equals(value.getString(KEY_STATE)) || STATE_OFF.equals(value.getString(KEY_STATE)));
+    }
+
+    public static boolean validRequestId(@Nullable String id) {
+        return id != null && id.matches("[0-9a-f]{32}");
     }
 
     /** Conditions never allow variable substitution or unrelated Action flags. */
@@ -163,14 +181,20 @@ public final class TaskerPluginWire {
         if (configuration.getBoolean(KEY_DYNAMIC, false)) {
             // Official Locale/Tasker protocol: space-delimited Bundle key names
             // passed in the edit result's outer Intent extras.
-            output.putExtra(EXTRA_VARIABLE_REPLACE_KEYS, KEY_PROFILE);
+            if (MODE_CANCEL.equals(configuration.getString(KEY_MODE)))
+                output.putExtra(EXTRA_VARIABLE_REPLACE_KEYS, KEY_REQUEST);
+            else output.putExtra(EXTRA_VARIABLE_REPLACE_KEYS, KEY_PROFILE);
         }
         if (hostSupportsCompletion && configuration.getBoolean(KEY_WAIT, false)) {
             output.putExtra(EXTRA_TIMEOUT, COMPLETION_TIMEOUT_MS);
         }
         output.putExtra(EXTRA_RELEVANT, new String[] {
                 "%am_request_id\nRequest ID", "%am_profile_id\nProfile ID", "%am_status\nQueued or final status",
-                "%am_state\nProfile state", "%am_error\nError code"
+                "%am_state\nProfile state", "%am_error\nError code",
+                "%am_history\nRecent request history (JSON)",
+                "%am_created_at\nCreated epoch millis",
+                "%am_started_at\nStarted epoch millis",
+                "%am_finished_at\nFinished epoch millis"
         });
         return output;
     }
