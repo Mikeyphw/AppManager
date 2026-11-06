@@ -20,6 +20,7 @@ import java.io.IOException;
 
 import io.github.muntashirakon.AppManager.BuildConfig;
 import io.github.muntashirakon.AppManager.automation.tasker.TaskerProfileEvents;
+import io.github.muntashirakon.AppManager.automation.tasker.TaskerCompletion;
 import io.github.muntashirakon.AppManager.R;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsResultsActivity;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsService;
@@ -104,6 +105,7 @@ public class ProfileApplierService extends ForegroundService {
             sendNotification(item.getProfileName(), Activity.RESULT_CANCELED, notify, false);
         } finally {
             TaskerProfileEvents.finished(this, item, taskerRequestId, taskerSucceeded);
+            TaskerCompletion.finish(this, intent, taskerRequestId, item, taskerSucceeded);
             if (tempProfilePath != null) {
                 tempProfilePath.delete();
             }

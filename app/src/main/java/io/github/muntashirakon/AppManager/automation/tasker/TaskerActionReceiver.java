@@ -51,14 +51,21 @@ public final class TaskerActionReceiver extends BroadcastReceiver {
             return;
         }
         final Bundle saved = new Bundle(config);
+        final String callback = TaskerPluginWire.MODE_APPLY.equals(config.getString(TaskerPluginWire.KEY_MODE))
+                && config.getBoolean(TaskerPluginWire.KEY_WAIT, false)
+                ? TaskerCompletion.acceptedCallback(intent) : null;
         final PendingResult pending = goAsync();
         final Context app = context.getApplicationContext();
         new Thread(() -> {
             try {
-                Bundle vars = dispatch(app, saved);
+                Bundle vars = dispatch(app, saved, callback);
                 if (ordered) {
-                    pending.setResultCode("failed".equals(vars.getString("%am_status"))
-                            ? TaskerPluginWire.RESULT_FAILED : TaskerPluginWire.RESULT_OK);
+                    boolean failed = "failed".equals(vars.getString("%am_status"));
+                    boolean queuedWithCallback = "queued".equals(vars.getString("%am_status"))
+                            && callback != null;
+                    pending.setResultCode(failed ? TaskerPluginWire.RESULT_FAILED
+                            : queuedWithCallback ? TaskerPluginWire.RESULT_PENDING
+                            : TaskerPluginWire.RESULT_OK);
                     Bundle result = new Bundle();
                     result.putBundle(TaskerPluginWire.EXTRA_VARIABLES, vars);
                     pending.setResultExtras(result);
@@ -83,7 +90,7 @@ public final class TaskerActionReceiver extends BroadcastReceiver {
         setResultExtras(result);
     }
 
-    private Bundle dispatch(Context context, Bundle config) {
+    private Bundle dispatch(Context context, Bundle config, String callbackUri) {
         String mode = config.getString(TaskerPluginWire.KEY_MODE);
         if (TaskerPluginWire.MODE_STATUS.equals(mode)) return TaskerProfileEvents.lastTerminal(context);
         String profileId = config.getString(TaskerPluginWire.KEY_PROFILE);
@@ -104,6 +111,7 @@ public final class TaskerActionReceiver extends BroadcastReceiver {
             ProfileQueueItem item = ProfileQueueItem.fromProfiledApplierInfo(info);
             Intent serviceIntent = ProfileApplierService.getIntent(context, item, false);
             serviceIntent.putExtra(TaskerProfileEvents.EXTRA_REQUEST_ID, id);
+            if (callbackUri != null) serviceIntent.putExtra(TaskerCompletion.EXTRA_CALLBACK_URI, callbackUri);
             TaskerProfileEvents.queued(context, item, id);
             ContextCompat.startForegroundService(context, serviceIntent);
             return TaskerPluginWire.variables(id, profileId, state, "queued", "");

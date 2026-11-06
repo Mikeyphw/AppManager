@@ -6,6 +6,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.LinearLayout;
 import android.widget.Spinner;
 import android.widget.TextView;
@@ -30,6 +31,8 @@ public final class TaskerActionEditActivity extends Activity {
     private Spinner state;
     private TextView feedback;
     private Button save;
+    private CheckBox waitForCompletion;
+    private boolean canWait;
     private String initialProfile;
 
     @Override
@@ -42,6 +45,8 @@ public final class TaskerActionEditActivity extends Activity {
         Bundle old = TaskerPluginWire.fromIntent(getIntent());
         String previousMode = old != null ? old.getString(TaskerPluginWire.KEY_MODE) : null;
         initialProfile = old != null ? old.getString(TaskerPluginWire.KEY_PROFILE) : null;
+        canWait = (getIntent().getIntExtra(TaskerPluginWire.EXTRA_HOST_CAPABILITIES, 0)
+                & TaskerPluginWire.CAPABILITY_SYNCHRONOUS) != 0;
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         int padding = Math.round(20 * getResources().getDisplayMetrics().density);
@@ -53,6 +58,12 @@ public final class TaskerActionEditActivity extends Activity {
         operation = field(root, "Action", ACTIONS);
         profile = field(root, "Profile", new String[] {"Loading profiles…"});
         this.state = field(root, "Profile state", STATES);
+        waitForCompletion = new CheckBox(this);
+        waitForCompletion.setText("Wait for final result in Tasker");
+        waitForCompletion.setChecked(canWait && (old == null
+                || old.getBoolean(TaskerPluginWire.KEY_WAIT, false)));
+        waitForCompletion.setEnabled(canWait);
+        root.addView(waitForCompletion);
         feedback = new TextView(this);
         feedback.setText("Choose a profile. Tasker will run it without extra approval screens.");
         root.addView(feedback);
@@ -124,6 +135,7 @@ public final class TaskerActionEditActivity extends Activity {
         boolean apply = operation.getSelectedItemPosition() == 0;
         profile.setVisibility(apply ? View.VISIBLE : View.GONE);
         state.setVisibility(apply ? View.VISIBLE : View.GONE);
+        waitForCompletion.setVisibility(apply && canWait ? View.VISIBLE : View.GONE);
         save.setEnabled(!apply || !profiles.isEmpty());
         feedback.setText(apply ? (profiles.isEmpty() ? "Create an App Manager profile first." :
                 "Runs the selected profile. The action reports queued; Events report the final outcome.") :
@@ -146,11 +158,12 @@ public final class TaskerActionEditActivity extends Activity {
             String token = TaskerAccess.tokenForTrustedEditor(this);
             String state = selected == null ? null : (this.state.getSelectedItemPosition() == 1
                     ? TaskerPluginWire.STATE_OFF : TaskerPluginWire.STATE_ON);
+            boolean wait = selected != null && canWait && waitForCompletion.isChecked();
             Bundle config = TaskerPluginWire.configuration(mode,
-                    selected != null ? selected.profileId : null, state, token);
+                    selected != null ? selected.profileId : null, state, token, wait);
             String blurb = selected == null ? "App Manager · Last profile result" :
                     "App Manager · " + selected.name + " · " + state;
-            setResult(RESULT_OK, TaskerPluginWire.editResult(config, blurb));
+            setResult(RESULT_OK, TaskerPluginWire.editResult(config, blurb, canWait));
             finish();
         } catch (IOException error) { feedback.setText("Could not save the Tasker configuration."); }
     }

@@ -15,7 +15,8 @@ SERVICE = Path('app/src/main/java/io/github/muntashirakon/AppManager/profiles/Pr
 DOC = Path('docs/TASKER_NATIVE.md')
 NAMES = ('TaskerAccess.java', 'TaskerPluginWire.java', 'TaskerActionEditActivity.java',
          'TaskerActionReceiver.java', 'TaskerProfileEvents.java', 'TaskerEventEditActivity.java',
-         'TaskerStateEditActivity.java', 'TaskerConditionEditActivity.java', 'TaskerConditionReceiver.java')
+         'TaskerStateEditActivity.java', 'TaskerConditionEditActivity.java',
+         'TaskerConditionReceiver.java', 'TaskerCompletion.java')
 FILES = tuple(PKG / name for name in NAMES) + (MANIFEST, PREFERENCES, STRINGS, SERVICE, DOC)
 ANDROID_NS = '{http://schemas.android.com/apk/res/android}'
 
@@ -72,18 +73,24 @@ def inspect(root: Path = ROOT) -> dict:
     signatures = {
         'TaskerAccess.java':('getNoBackupFilesDir(', 'new SecureRandom()', 'MessageDigest.isEqual(', 'tokenForTrustedEditor(', 'valid('),
         'TaskerPluginWire.java':('ACTION_EDIT_EVENT', 'EDIT_ACTION', 'FIRE_ACTION', 'QUERY_CONDITION',
-                                'validConfiguration(', '%am_status', 'TaskerPluginWire', 'getInt(KEY_VERSION'),
+                                'validConfiguration(', '%am_status', 'TaskerPluginWire', 'getInt(KEY_VERSION',
+                                'KEY_WAIT', 'RESULT_PENDING', 'EXTRA_TIMEOUT', 'CAPABILITY_SYNCHRONOUS'),
         'TaskerActionEditActivity.java':('getCallingPackage()', 'trustedEditor(', 'tokenForTrustedEditor(',
-                                         'ProfileManager.getProfiles()', 'TaskerPluginWire.editResult(', 'isFinishing()'),
+                                         'ProfileManager.getProfiles()', 'TaskerPluginWire.editResult(', 'isFinishing()',
+                                         'waitForCompletion', 'canWait', 'KEY_WAIT'),
         'TaskerActionReceiver.java':('getSentFromPackage()', 'TaskerAccess.valid(', 'goAsync()',
                                      'ProfileQueueItem.fromProfiledApplierInfo(', 'ContextCompat.startForegroundService(',
                                      'TaskerProfileEvents.queued(', 'TaskerProfileEvents.dispatchFailed(',
-                                     '"queued"', '"failed"'),
+                                     '"queued"', '"failed"', 'RESULT_PENDING', 'TaskerCompletion.acceptedCallback('),
         'TaskerProfileEvents.java':('REQUEST_QUERY', 'EXTRA_PASS_THROUGH', 'EXTRA_MESSAGE_ID',
                                     'EVENT_TTL', 'started(', 'finished(', 'matchingEvent('),
         'TaskerConditionReceiver.java':('QUERY_CONDITION', 'TaskerAccess.valid(',
                                         'matchingEvent(', 'stateMatches(', 'CONDITION_SATISFIED',
                                         'CONDITION_UNSATISFIED', 'isOrderedBroadcast()'),
+        'TaskerCompletion.java':('acceptedCallback(', 'validUri(', 'Intent.parseUri(',
+                                 'TaskerPluginWire.TASKER_PACKAGE', 'EXTRA_CALL_SERVICE_PACKAGE',
+                                 'EXTRA_RESULT_CODE', 'EXTRA_VARIABLES', 'startForegroundService(',
+                                 'sendBroadcast(', 'return false;'),
         'TaskerConditionEditActivity.java':('getCallingPackage()', 'TaskerAccess.tokenForTrustedEditor(',
                                            'TaskerPluginWire.EDIT_EVENT', 'TaskerPluginWire.EDIT_STATE'),
     }
@@ -93,10 +100,11 @@ def inspect(root: Path = ROOT) -> dict:
     service = (root / SERVICE).read_text()
     for marker in ('TaskerProfileEvents.started(this, item, taskerRequestId)',
                    'TaskerProfileEvents.finished(this, item, taskerRequestId, taskerSucceeded)',
+                   'TaskerCompletion.finish(this, intent, taskerRequestId, item, taskerSucceeded)',
                    'ProfileQueueItem item = getQueueItem(intent)',
                    'profileManager.applyProfile(item.getState(), mProgressHandler)'):
         if marker not in service: errors.append('profile-service observation hook missing: '+marker)
-    return {'status':'PASS' if not errors else 'FAIL', 'errors':errors, 'phase':'AMT-02-R2B', 'source_only':True}
+    return {'status':'PASS' if not errors else 'FAIL', 'errors':errors, 'phase':'AMT-02-R2C', 'source_only':True}
 
 
 def main() -> int:

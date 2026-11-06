@@ -16,9 +16,12 @@ pre-existing App Manager profile service, and no user grants are required.
   last profile succeeded, or last profile failed.
 
 **Output variables:** `%am_request_id`, `%am_profile_id`, `%am_state`,
-`%am_status`, `%am_error`. Tasker Action returns **queued**, not **success**,
-when the internal foreground service accepts a profile job; the real outcome
-appears in Event/State updates and Last Profile Result. The Event/State
+`%am_status`, `%am_error`. Newly configured Apply Profile actions default to
+**Wait for final result** when the Tasker host supports synchronous plugin
+completion. The service reports final **success/failed** and updates `%am_*`
+via Tasker's standard completion intent. An unsupported host, or a pre-R2C
+saved action without this option, still receives **queued** immediately; the
+final outcome remains available through Event/State and Last Profile Result. The Event/State
 implementation observes the existing `ProfileApplierService`, including
 profiles applied from inside App Manager.
 
@@ -51,9 +54,18 @@ remains non-exported.
   identified by Tasker's pass-through message IDs, expire after two minutes,
   and do not replay when Tasker queries at startup. On Tasker hosts that do not
   pass through event message IDs, these events intentionally fail closed.
-- This does not add dynamic Tasker variable replacement for profile IDs or
-  wait-for-final-result action callbacks. Output variables are available for
-  Tasker hosts supporting the standard Tasker/Locale extension.
+- Dynamic Tasker variable replacement for profile IDs is not yet included.
+  A configured action can select an existing profile from the editor.
+- Pending completion callbacks are accepted only after the saved Tasker token
+  is checked. Callback URI targets are restricted to the Tasker package,
+  and malformed or oversized callback URIs are rejected. A callback delivery
+  problem never changes the outcome of the profile operation.
+- When the Tasker host offers no valid completion URI, the action returns
+  **queued**, rather than hanging indefinitely. The service's final result is
+  also published as an Event/State observation.
+- Tasker's requested wait timeout is ten minutes; profiles exceeding the host's
+  timeout may finish later in App Manager, and the host may ignore a timeout
+  request. Android process death can prevent final callback delivery.
 - The repository's `android:installLocation` is left untouched for upstream
   compatibility. Keep App Manager installed in internal storage for reliable
   plug-in discovery on devices that allow apps to move to external storage.

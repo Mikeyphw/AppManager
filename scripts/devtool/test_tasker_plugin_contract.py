@@ -40,6 +40,28 @@ class NativeTaskerContractTests(unittest.TestCase):
                         'android:name=".automation.tasker.TaskerActionReceiver"\n            android:exported="false"'))
             self.assertTrue(any('not exported' in e for e in inspect(root)['errors']))
 
+    def test_async_callback_must_be_restricted_to_tasker(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp); self.fixture(root)
+            p=root/PKG/'TaskerCompletion.java'
+            p.write_text(p.read_text().replace('TaskerPluginWire.TASKER_PACKAGE', '"any.third.party"'))
+            self.assertTrue(any('TaskerPluginWire.TASKER_PACKAGE' in e for e in inspect(root)['errors']))
+
+    def test_service_must_send_real_final_result(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp); self.fixture(root)
+            p=root/'app/src/main/java/io/github/muntashirakon/AppManager/profiles/ProfileApplierService.java'
+            p.write_text(p.read_text().replace('TaskerCompletion.finish(this, intent, taskerRequestId, item, taskerSucceeded);',
+                                               '// removed completion callback'))
+            self.assertTrue(any('TaskerCompletion.finish(' in e for e in inspect(root)['errors']))
+
+    def test_receiver_cannot_fake_synchronous_success(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root=Path(temp); self.fixture(root)
+            p=root/PKG/'TaskerActionReceiver.java'
+            p.write_text(p.read_text().replace('TaskerCompletion.acceptedCallback(', 'TaskerCompletion.unsafeCallback('))
+            self.assertTrue(any('TaskerCompletion.acceptedCallback(' in e for e in inspect(root)['errors']))
+
     def test_old_approval_screen_is_not_restored(self):
         with tempfile.TemporaryDirectory() as temp:
             root=Path(temp); self.fixture(root)
