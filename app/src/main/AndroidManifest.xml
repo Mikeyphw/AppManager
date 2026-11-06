@@ -171,6 +171,49 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="UnusedAttribute">
+        <!-- AMT-02: native Tasker/Locale plugin. Editors verify the OS-supplied
+             calling package; receivers validate the auto-generated capability. -->
+        <activity
+            android:name=".automation.tasker.TaskerActionEditActivity"
+            android:exported="true"
+            android:label="@string/tasker_action_plugin">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <receiver
+            android:name=".automation.tasker.TaskerActionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.FIRE_SETTING" />
+            </intent-filter>
+        </receiver>
+        <activity
+            android:name=".automation.tasker.TaskerEventEditActivity"
+            android:exported="true"
+            android:label="@string/tasker_event_plugin">
+            <intent-filter>
+                <action android:name="net.dinglisch.android.tasker.ACTION_EDIT_EVENT" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".automation.tasker.TaskerStateEditActivity"
+            android:exported="true"
+            android:label="@string/tasker_state_plugin">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_CONDITION" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <receiver
+            android:name=".automation.tasker.TaskerConditionReceiver"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.QUERY_CONDITION" />
+            </intent-filter>
+        </receiver>
         <activity
             android:name=".filters.FinderActivity"
             android:enableOnBackInvokedCallback="true"

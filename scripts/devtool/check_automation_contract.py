@@ -65,9 +65,9 @@ def inspect(root: Path = ROOT) -> dict:
         for marker in markers:
             if marker not in code:
                 errors.append('missing Android security marker: ' + name + ' / ' + marker)
-    # AMT-02 R2A: validate the in-app, explicit-consent UI source contract.
-    from check_automation_consent_contract import inspect as inspect_consent
-    errors.extend(inspect_consent(root)["errors"])
+    # AMT-02: native Tasker plug-in; no in-app approval UI.
+    from check_tasker_plugin_contract import inspect as inspect_tasker
+    errors.extend(inspect_tasker(root)["errors"])
     if not (root / IDENTITY_TEST).is_file():
         errors.append('missing verified identity JUnit tests')
     else:
@@ -92,7 +92,7 @@ def inspect(root: Path = ROOT) -> dict:
     elif 'automation.core' in manifest.read_text():
         errors.append('AMT-01 must not export an automation endpoint')
     return {'status': 'PASS' if not errors else 'FAIL', 'errors': errors,
-            'phase': 'AMT-02-R1', 'source_only': True}
+            'phase': 'AMT-02-NATIVE', 'source_only': True}
 
 def main() -> int:
     p = argparse.ArgumentParser()

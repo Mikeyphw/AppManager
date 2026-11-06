@@ -19,6 +19,7 @@ import androidx.core.app.ServiceCompat;
 import java.io.IOException;
 
 import io.github.muntashirakon.AppManager.BuildConfig;
+import io.github.muntashirakon.AppManager.automation.tasker.TaskerProfileEvents;
 import io.github.muntashirakon.AppManager.R;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsResultsActivity;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsService;
@@ -89,15 +90,20 @@ public class ProfileApplierService extends ForegroundService {
         }
         boolean notify = intent.getBooleanExtra(EXTRA_NOTIFY, true);
         Path tempProfilePath = item.getTempProfilePath();
+        String taskerRequestId = TaskerProfileEvents.requestId(intent);
+        TaskerProfileEvents.started(this, item, taskerRequestId);
+        boolean taskerSucceeded = false;
         try {
             ProfileManager profileManager = new ProfileManager(item.getProfileId(), tempProfilePath);
             profileManager.applyProfile(item.getState(), mProgressHandler);
             profileManager.conclude();
+            taskerSucceeded = true;
             OpHistoryManager.addHistoryItem(HISTORY_TYPE_PROFILE, item, true);
             sendNotification(item.getProfileName(), Activity.RESULT_OK, notify, profileManager.requiresRestart());
         } catch (IOException e) {
             sendNotification(item.getProfileName(), Activity.RESULT_CANCELED, notify, false);
         } finally {
+            TaskerProfileEvents.finished(this, item, taskerRequestId, taskerSucceeded);
             if (tempProfilePath != null) {
                 tempProfilePath.delete();
             }
