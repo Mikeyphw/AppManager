@@ -112,12 +112,15 @@ jobs:
           MODE: ${{ inputs.mode || 'full' }}
         run: |
           set -euo pipefail
-          devtool --repo "$PWD" --target app inspect
+          : "${JAVA_HOME:?GitHub setup-java must expose JAVA_HOME}"
+          test -x "$JAVA_HOME/bin/java"
+          "$JAVA_HOME/bin/java" -version
+          devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app inspect
           case "$MODE" in
-            build) devtool --repo "$PWD" --target app build ;;
-            test)  devtool --repo "$PWD" --target app test ;;
-            lint)  devtool --repo "$PWD" --target app lint ;;
-            full)  devtool --repo "$PWD" invoke --target app ci ;;
+            build) devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app build ;;
+            test)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app test ;;
+            lint)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app lint ;;
+            full)  devtool --repo "$PWD" --java-home "$JAVA_HOME" invoke --target app ci ;;
             *)     echo "Unsupported mode: $MODE" >&2; exit 2 ;;
           esac
       - name: Produce checksum manifest of debug APKs

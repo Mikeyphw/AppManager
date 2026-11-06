@@ -28,6 +28,29 @@ class TestContract(unittest.TestCase):
             self.assertTrue(any("unsupported canonical wrapper action" in message
                                 for message in result["errors"]))
 
+    def test_missing_java_home_on_hosted_test_is_rejected(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp)
+            for name in inspect()["checked"]:
+                src = ROOT / name
+                dst = dest / name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(src.read_bytes())
+            docs = dest / "docs/DEVTOOL_TASKER.md"
+            docs.parent.mkdir(parents=True, exist_ok=True)
+            docs.write_text("fixture")
+            (dest / "devtoolw").chmod(0o755)
+            workflow = dest / ".github/workflows/devtool-tasker-ci.yml"
+            original = workflow.read_text()
+            correct = 'test)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app test ;;'
+            self.assertIn(correct, original)
+            workflow.write_text(original.replace(correct,
+                'test)  devtool --repo "$PWD" --target app test ;;', 1))
+            result = inspect(dest)
+            self.assertEqual(result["status"], "FAIL")
+            self.assertTrue(any("hosted Devtool test must use JAVA_HOME" in message
+                                for message in result["errors"]))
+
     def test_configuration_mutation_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp)

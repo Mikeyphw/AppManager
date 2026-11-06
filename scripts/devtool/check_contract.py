@@ -111,9 +111,21 @@ def inspect(root: Path = ROOT) -> dict[str, object]:
     # GitHub Actions is the only proposed automated Gradle execution surface.
     workflow = (root / ".github/workflows" / WORKFLOW).read_text()
     for keyword in ('workflow_dispatch:', 'android-actions/setup-android@v4', "packages: 'platform-tools'",
-                    'devtool --repo "$PWD" --target app', 'git merge-tree --write-tree',
+                    'devtool --repo "$PWD" --java-home "$JAVA_HOME"', 'git merge-tree --write-tree',
                     'actions/upload-artifact@v4'):
         require(keyword in workflow, "hosted workflow missing: " + keyword)
+    # Bind every hosted Gradle mode to the runner's JDK, not App Manager's
+    # Java 8 source-compatibility declaration.
+    require("java-version: '21'" in workflow, "hosted build must provision JDK 21")
+    require('test -x "$JAVA_HOME/bin/java"' in workflow, "hosted JDK executable preflight missing")
+    for mode, invocation in (
+        ("inspect", 'devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app inspect'),
+        ("build", 'build) devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app build ;;'),
+        ("test", 'test)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app test ;;'),
+        ("lint", 'lint)  devtool --repo "$PWD" --java-home "$JAVA_HOME" --target app lint ;;'),
+        ("full", 'full)  devtool --repo "$PWD" --java-home "$JAVA_HOME" invoke --target app ci ;;'),
+    ):
+        require(invocation in workflow, f"hosted Devtool {mode} must use JAVA_HOME")
     require("android-actions/setup-android@v3" not in workflow, "legacy Android SDK action cannot be used")
     require("pull_request:" in workflow and "feature/tasker-automation" in workflow,
             "upstream-compatible CI triggers missing")
