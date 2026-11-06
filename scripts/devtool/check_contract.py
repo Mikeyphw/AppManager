@@ -110,10 +110,11 @@ def inspect(root: Path = ROOT) -> dict[str, object]:
     require("services.gradle.org/distributions/gradle-" in dist, "unexpected Gradle distribution origin")
     # GitHub Actions is the only proposed automated Gradle execution surface.
     workflow = (root / ".github/workflows" / WORKFLOW).read_text()
-    for keyword in ('workflow_dispatch:', 'android-actions/setup-android@v3',
+    for keyword in ('workflow_dispatch:', 'android-actions/setup-android@v4', "packages: 'platform-tools'",
                     'devtool --repo "$PWD" --target app', 'git merge-tree --write-tree',
                     'actions/upload-artifact@v4'):
         require(keyword in workflow, "hosted workflow missing: " + keyword)
+    require("android-actions/setup-android@v3" not in workflow, "legacy Android SDK action cannot be used")
     require("pull_request:" in workflow and "feature/tasker-automation" in workflow,
             "upstream-compatible CI triggers missing")
     require("--release" not in workflow and "assembleRelease" not in workflow,

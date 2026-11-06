@@ -16,8 +16,8 @@ name: Devtool Tasker integration / hosted Android
       - 'devtoolw*'
       - 'scripts/devtool/**'
       - '.github/workflows/devtool-tasker-ci.yml'
-      - 'app/src/main/java/io/github/muntashirakon/AppManager/automation/core/**'
-      - 'app/src/test/java/io/github/muntashirakon/AppManager/automation/core/**'
+      - 'app/src/main/java/io/github/muntashirakon/AppManager/automation/**'
+      - 'app/src/test/java/io/github/muntashirakon/AppManager/automation/**'
   pull_request:
     branches: [master]
 
@@ -90,7 +90,9 @@ jobs:
           distribution: zulu
           java-version: '21'
           cache: gradle
-      - uses: android-actions/setup-android@v3
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
       - name: Install Android SDK packages
         shell: bash
         run: |

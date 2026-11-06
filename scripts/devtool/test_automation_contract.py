@@ -3,11 +3,11 @@ import tempfile
 import unittest
 from pathlib import Path
 from shutil import copy2
-from check_automation_contract import ROOT, CORE, TEST, NAMES, inspect
+from check_automation_contract import ROOT, CORE, TEST, NAMES, ANDROID, ANDROID_CLASSES, IDENTITY_TEST, inspect
 
 def fixture(tmp):
     p = Path(tmp)
-    names = [CORE / name for name in NAMES] + [TEST, Path('app/src/main/AndroidManifest.xml')]
+    names = [CORE / name for name in NAMES] + [ANDROID / name for name in ANDROID_CLASSES] + [TEST, IDENTITY_TEST, Path('app/src/main/AndroidManifest.xml')]
     for name in names:
         dest = p / name
         dest.parent.mkdir(parents=True, exist_ok=True)
@@ -23,6 +23,20 @@ class TestAutomationContract(unittest.TestCase):
             root = fixture(t)
             manifest = root / 'app/src/main/AndroidManifest.xml'
             manifest.write_text(manifest.read_text() + '\n<!-- automation.core -->\n')
+            self.assertEqual('FAIL', inspect(root)['status'])
+
+    def test_android_uid_verification_mutation_is_rejected(self):
+        with tempfile.TemporaryDirectory() as t:
+            root = fixture(t)
+            path = root / ANDROID / 'AndroidCallerVerifier.java'
+            path.write_text(path.read_text().replace('Binder.getCallingUid()', '12345'))
+            self.assertEqual('FAIL', inspect(root)['status'])
+
+    def test_shared_uid_rejection_mutation_is_rejected(self):
+        with tempfile.TemporaryDirectory() as t:
+            root = fixture(t)
+            path = root / CORE / 'AutomationIdentityPolicy.java'
+            path.write_text(path.read_text().replace('uidPackages.length == 1', 'uidPackages.length > 0'))
             self.assertEqual('FAIL', inspect(root)['status'])
 
     def test_authorization_gate_mutation_is_rejected(self):

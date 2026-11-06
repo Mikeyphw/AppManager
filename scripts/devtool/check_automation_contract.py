@@ -14,8 +14,18 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[2]
 CORE = Path('app/src/main/java/io/github/muntashirakon/AppManager/automation/core')
 TEST = Path('app/src/test/java/io/github/muntashirakon/AppManager/automation/core/AutomationCoreTest.java')
+ANDROID = Path('app/src/main/java/io/github/muntashirakon/AppManager/automation/android')
+IDENTITY_TEST = Path('app/src/test/java/io/github/muntashirakon/AppManager/automation/core/AutomationIdentityPolicyTest.java')
+ANDROID_CLASSES = {
+ 'AndroidCallerVerifier.java': ('Binder.getCallingUid()', 'getPackagesForUid(', 'getApkContentsSigners()', 'AutomationIdentityPolicy.verifiedCaller'),
+ 'AndroidGrantRepository.java': ('new AtomicFile(', 'Collections.emptyList()', 'putUserApprovedGrant', 'revokeGrant'),
+ 'AndroidReplayGuard.java': ('SQLiteDatabase.CONFLICT_IGNORE', 'PRIMARY KEY(uid, pkg, signer, request_id)', 'return false;'),
+ 'AndroidAutomationIntentParser.java': ('payload.keySet()', 'AutomationRequest.fromFields', 'am.package'),
+ 'AndroidAutomationGateway.java': ('dispatchFromBinder(', 'identity.verifyBinderCaller(', 'new AndroidGrantRepository(', 'new AndroidReplayGuard(', 'dispatcher.dispatch('),
+}
 NAMES = (
     'AutomationRequest.java', 'AutomationCaller.java', 'AutomationGrant.java',
+    'AutomationIdentityPolicy.java',
     'AutomationPolicy.java', 'AutomationDispatcher.java', 'AutomationResult.java',
 )
 
@@ -46,6 +56,24 @@ def inspect(root: Path = ROOT) -> dict:
     ):
         if name in source and marker not in source[name]:
             errors.append(f'missing security contract: {name} / {marker}')
+    for name, markers in ANDROID_CLASSES.items():
+        path = root / ANDROID / name
+        if not path.is_file():
+            errors.append('missing Android bridge: ' + name)
+            continue
+        code = path.read_text(encoding='utf-8')
+        for marker in markers:
+            if marker not in code:
+                errors.append('missing Android security marker: ' + name + ' / ' + marker)
+    if not (root / IDENTITY_TEST).is_file():
+        errors.append('missing verified identity JUnit tests')
+    else:
+        identity_test = (root / IDENTITY_TEST).read_text()
+        for marker in ('rejectsMissingWrongAndAmbiguousUidPackageBindings', 'verifiedIdentityUsesExactUidAndDigest'):
+            if marker not in identity_test:
+                errors.append('missing identity test: ' + marker)
+    if 'AutomationIdentityPolicy.java' in source and 'uidPackages.length == 1' not in source['AutomationIdentityPolicy.java']:
+        errors.append('shared UID rejection missing')
     if not (root / TEST).is_file():
         errors.append(f'missing: {TEST}')
     else:
@@ -61,7 +89,7 @@ def inspect(root: Path = ROOT) -> dict:
     elif 'automation.core' in manifest.read_text():
         errors.append('AMT-01 must not export an automation endpoint')
     return {'status': 'PASS' if not errors else 'FAIL', 'errors': errors,
-            'phase': 'AMT-01', 'source_only': True}
+            'phase': 'AMT-02-R1', 'source_only': True}
 
 def main() -> int:
     p = argparse.ArgumentParser()
@@ -72,7 +100,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(result, indent=2))
     else:
-        print('AMT01_AUTOMATION_CORE_' + result['status'])
+        print('AMT02_ANDROID_BRIDGE_' + result['status'])
         for item in result['errors']:
             print('-', item)
     return 0 if result['status'] == 'PASS' else 1
