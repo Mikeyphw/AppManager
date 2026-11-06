@@ -50,6 +50,34 @@ public final class AndroidCallerVerifier {
         }
     }
 
+    /**
+     * Called ONLY by our authenticated settings UI, not from an incoming
+     * Intent or remote Binder request. Re-reads installed package identity
+     * at approval time and refuses ambiguous shared UIDs.
+     */
+    @Nullable
+    public AutomationCaller verifyInstalledForConsent(@NonNull String packageName) {
+        // Initial release permits only a deliberately chosen Tasker installation.
+        if (!"net.dinglisch.android.taskerm".equals(packageName)
+                && !"net.dinglisch.android.tasker".equals(packageName)) return null;
+        try {
+            PackageInfo info = packageManager.getPackageInfo(packageName,
+                    Build.VERSION.SDK_INT >= Build.VERSION_CODES.P
+                            ? PackageManager.GET_SIGNING_CERTIFICATES
+                            : PackageManager.GET_SIGNATURES);
+            if (info.applicationInfo == null) return null;
+            int uid = info.applicationInfo.uid;
+            String[] packages = packageManager.getPackagesForUid(uid);
+            if (!AutomationIdentityPolicy.uniquelyOwned(uid, packages, packageName)) return null;
+            Signature[] current = currentSigningCertificates(packageName);
+            if (current == null || current.length != 1 || current[0] == null) return null;
+            return AutomationIdentityPolicy.verifiedCaller(uid, packages, packageName,
+                    sha256Hex(current[0].toByteArray()));
+        } catch (PackageManager.NameNotFoundException | RuntimeException ignored) {
+            return null;
+        }
+    }
+
     @Nullable
     @SuppressWarnings("deprecation")
     private Signature[] currentSigningCertificates(@NonNull String packageName)

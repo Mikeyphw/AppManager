@@ -56,6 +56,12 @@ public final class AndroidGrantRepository implements AutomationDispatcher.GrantP
         }
     }
 
+    /** Authenticated local UI only; never make this method callable over IPC. */
+    @NonNull
+    public synchronized List<AutomationGrant> listForUser() throws IOException {
+        return Collections.unmodifiableList(new ArrayList<>(loadAll()));
+    }
+
     /** UI-only: caller must have been approved by an authenticated local user. */
     public synchronized void putUserApprovedGrant(@NonNull AutomationGrant approved) throws IOException {
         if (approved.expiresAtMillis <= System.currentTimeMillis())

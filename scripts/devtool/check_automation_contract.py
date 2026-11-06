@@ -65,6 +65,9 @@ def inspect(root: Path = ROOT) -> dict:
         for marker in markers:
             if marker not in code:
                 errors.append('missing Android security marker: ' + name + ' / ' + marker)
+    # AMT-02 R2A: validate the in-app, explicit-consent UI source contract.
+    from check_automation_consent_contract import inspect as inspect_consent
+    errors.extend(inspect_consent(root)["errors"])
     if not (root / IDENTITY_TEST).is_file():
         errors.append('missing verified identity JUnit tests')
     else:

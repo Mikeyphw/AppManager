@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: GPL-3.0-or-later -->
+<resources>
+    <string name="automation_title">Automation &amp; Tasker</string>
+    <string name="automation_consent_heading">Tasker authorization</string>
+    <string name="automation_runtime_unavailable">Runtime integration not enabled yet</string>
+    <string name="automation_runtime_unavailable_summary">This screen manages local approvals only. No external automation command endpoint is currently exported.</string>
+    <string name="automation_approve_capabilities">Approve capability discovery</string>
+    <string name="automation_approve_capabilities_summary">Allow the selected installed Tasker app to query capabilities for seven days.</string>
+    <string name="automation_approve_profile">Approve one profile</string>
+    <string name="automation_approve_profile_summary">Select exactly one profile for Tasker to apply after runtime integration is enabled.</string>
+    <string name="automation_current_grants">Current authorizations · tap to revoke</string>
+    <string name="automation_tasker_not_installed">Tasker is not installed or its installed identity could not be verified. No grant was created.</string>
+    <string name="automation_choose_tasker">Choose Tasker installation</string>
+    <string name="automation_choose_profile">Choose profile to authorize</string>
+    <string name="automation_no_profiles">No readable profiles were found. No grant was created.</string>
+    <string name="automation_confirm_approval">Approve Tasker access?</string>
+    <string name="automation_approval_explanation">Installed caller: %1$s
+Scope: %2$s
+Expires after seven days. This approval does not enable any external command endpoint. Only approve a caller you trust.</string>
+    <string name="automation_approve">Approve</string>
+    <string name="automation_identity_changed">Tasker package identity changed or is ambiguous. Approval was refused.</string>
+    <string name="automation_store_error">Unable to read or update private authorization storage. No authorization is assumed.</string>
+    <string name="automation_no_grants">No approvals recorded</string>
+    <string name="automation_grant_summary">Profile: %1$s · Expires: %2$s</string>
+    <string name="automation_revoke_title">Revoke authorization?</string>
+    <string name="automation_revoke_confirmation">Remove the authorization for %1$s (%2$s)?</string>
+    <string name="automation_revoke">Revoke</string>
+</resources>
