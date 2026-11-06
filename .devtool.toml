@@ -72,10 +72,22 @@ inputs = [
 ]
 outputs = []
 
+[targets.app.jobs.automation_contract]
+runner = "command"
+root = "."
+command = ["python3", "scripts/devtool/check_automation_contract.py", "--check"]
+inputs = [
+  "scripts/devtool/check_automation_contract.py",
+  "scripts/devtool/test_automation_contract.py",
+  "app/src/main/java/io/github/muntashirakon/AppManager/automation/core/**",
+  "app/src/test/java/io/github/muntashirakon/AppManager/automation/core/**"
+]
+outputs = []
+
 [targets.app.workflows]
-source-check = ["job:source_contract"]
+source-check = ["job:source_contract", "job:automation_contract"]
 # Hosted-only full gate. Do not invoke on Termux.
-ci = ["job:source_contract", "runner:android#build", "runner:android#test", "runner:android#lint"]
+ci = ["job:source_contract", "job:automation_contract", "runner:android#build", "runner:android#test", "runner:android#lint"]
 
 # Wrapper contract is intentionally thin: no second scheduler and no local
 # command that silently builds Android from Termux. Hosted CI is explicit.

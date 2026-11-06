@@ -67,11 +67,15 @@ def inspect(root: Path = ROOT) -> dict[str, object]:
     for action, expected in TASKS.items():
         require(target.get("tasks", {}).get(action) == expected, f"unexpected {action} Gradle tasks")
     workflows = target.get("workflows", {})
-    require(workflows.get("source-check") == ["job:source_contract"], "source-check workflow must be target-local")
-    require(workflows.get("ci") == ["job:source_contract", "runner:android#build", "runner:android#test", "runner:android#lint"], "CI workflow must preserve Devtool runner actions")
+    require(workflows.get("source-check") == ["job:source_contract", "job:automation_contract"], "source-check must include both contracts")
+    require(workflows.get("ci") == ["job:source_contract", "job:automation_contract", "runner:android#build", "runner:android#test", "runner:android#lint"], "CI workflow must preserve Devtool runner actions")
     job = target.get("jobs", {}).get("source_contract", {})
     require(job.get("runner") == "command" and job.get("command") == ["python3", "scripts/devtool/check_contract.py", "--check"], "source contract must be pure Python")
 
+    automation_job = target.get("jobs", {}).get("automation_contract", {})
+    require(automation_job.get("runner") == "command" and
+            automation_job.get("command") == ["python3", "scripts/devtool/check_automation_contract.py", "--check"],
+            "AMT-01 must be a target-local Python source contract")
     for name, mode in (("ci-build", "build"), ("ci-test", "test"), ("ci-lint", "lint"), ("ci-full", "full")):
         action = commands.get(name, {})
         args = action.get("actions", {})

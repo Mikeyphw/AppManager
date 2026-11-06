@@ -16,6 +16,8 @@ name: Devtool Tasker integration / hosted Android
       - 'devtoolw*'
       - 'scripts/devtool/**'
       - '.github/workflows/devtool-tasker-ci.yml'
+      - 'app/src/main/java/io/github/muntashirakon/AppManager/automation/core/**'
+      - 'app/src/test/java/io/github/muntashirakon/AppManager/automation/core/**'
   pull_request:
     branches: [master]
 
@@ -41,6 +43,7 @@ jobs:
       - name: Source checks (no Gradle)
         run: |
           python3 scripts/devtool/check_contract.py --check
+          python3 scripts/devtool/check_automation_contract.py --check
           python3 -m unittest discover -s scripts/devtool -p 'test_*.py' -v
           sh -n devtoolw
       - name: Verify upstream merge compatibility without changing the tree
