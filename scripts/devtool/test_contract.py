@@ -51,6 +51,50 @@ class TestContract(unittest.TestCase):
             self.assertTrue(any("hosted Devtool test must use JAVA_HOME" in message
                                 for message in result["errors"]))
 
+    def test_configuration_cache_cannot_be_reenabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp)
+            for name in inspect()["checked"]:
+                src = ROOT / name
+                dst = dest / name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(src.read_bytes())
+            docs = dest / "docs/DEVTOOL_TASKER.md"
+            docs.parent.mkdir(parents=True, exist_ok=True)
+            docs.write_text("fixture")
+            (dest / "devtoolw").chmod(0o755)
+            config = dest / ".devtool.toml"
+            source = config.read_text()
+            self.assertIn('configuration_cache = "off"', source)
+            config.write_text(source.replace('configuration_cache = "off"',
+                                             'configuration_cache = "auto"', 1))
+            result = inspect(dest)
+            self.assertEqual(result["status"], "FAIL")
+            self.assertTrue(any("configuration_cache must be off" in error
+                                for error in result["errors"]))
+
+    def test_gradle_build_cache_remains_enabled(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            dest = Path(tmp)
+            for name in inspect()["checked"]:
+                src = ROOT / name
+                dst = dest / name
+                dst.parent.mkdir(parents=True, exist_ok=True)
+                dst.write_bytes(src.read_bytes())
+            docs = dest / "docs/DEVTOOL_TASKER.md"
+            docs.parent.mkdir(parents=True, exist_ok=True)
+            docs.write_text("fixture")
+            (dest / "devtoolw").chmod(0o755)
+            config = dest / ".devtool.toml"
+            source = config.read_text()
+            self.assertIn('build_cache = true', source)
+            config.write_text(source.replace('build_cache = true',
+                                             'build_cache = false', 1))
+            result = inspect(dest)
+            self.assertEqual(result["status"], "FAIL")
+            self.assertTrue(any("build_cache must remain enabled" in error
+                                for error in result["errors"]))
+
     def test_configuration_mutation_refused(self):
         with tempfile.TemporaryDirectory() as tmp:
             dest = Path(tmp)

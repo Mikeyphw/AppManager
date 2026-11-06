@@ -38,6 +38,9 @@ aapt2_provider = "auto"
 policy = "disabled"
 
 [targets.app.gradle]
+# App Manager upstream tasks are not configuration-cache-compatible.
+# Keep the regular Gradle build cache enabled; disable only configuration cache.
+configuration_cache = "off"
 max_workers = 2
 parallel = false
 build_cache = true

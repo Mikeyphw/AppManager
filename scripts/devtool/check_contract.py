@@ -61,6 +61,13 @@ def inspect(root: Path = ROOT) -> dict[str, object]:
     require(config.get("workspace", {}).get("default_target") == "app", "default target must be app")
     require(target.get("root") == ".", "app target root must be the upstream Gradle root")
     require(target.get("runner") == "android", "target runner must be android")
+    # Disable only Gradle's configuration cache: upstream App Manager's docs,
+    # server and app build logic are not configuration-cache-compatible.
+    # The regular Gradle build cache remains explicitly enabled.
+    require(target.get("gradle", {}).get("configuration_cache") == "off",
+            "app Gradle configuration_cache must be off (upstream build-logic incompatibility)")
+    require(target.get("gradle", {}).get("build_cache") is True,
+            "app Gradle build_cache must remain enabled")
     require(target.get("android", {}).get("instrumentation", {}).get("policy") == "disabled", "no implicit device instrumentation")
     require(wrapper.get("schema") == 2, "canonical wrapper schema must be 2")
     require(wrapper.get("default_command") == "source-check", "default command must stay source-only")
