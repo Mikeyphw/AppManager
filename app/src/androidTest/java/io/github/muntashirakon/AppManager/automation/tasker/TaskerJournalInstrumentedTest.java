@@ -219,6 +219,43 @@ public class TaskerJournalInstrumentedTest {
         } finally { store.delete(); new java.io.File(store+".bak").delete(); }
     }
 
+    @Test public void testApkReceiptRecoveryOfStalePendingOnDevice() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05d-stale-"+id()+".json");
+        String pkg = "com.example.amt05d_device";
+        try {
+            TaskerApkBackupJournal ledger = new TaskerApkBackupJournal(store);
+            String stale = "Tasker-"+java.util.UUID.randomUUID();
+            ledger.enqueue(pkg, 0, stale);
+            org.json.JSONObject root = new org.json.JSONObject(new String(
+                    java.nio.file.Files.readAllBytes(store.toPath()), java.nio.charset.StandardCharsets.UTF_8));
+            org.json.JSONObject old = root.getJSONArray("records").getJSONObject(0);
+            long when = System.currentTimeMillis()-3L*60L*60L*1000L;
+            old.put("created_ms", when);old.put("updated_ms", when);
+            java.nio.file.Files.write(store.toPath(), root.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            ledger.enqueue(pkg, 0, "Tasker-"+java.util.UUID.randomUUID());
+            android.os.Bundle vars = ledger.latest(pkg, 0);
+            assertEquals("1", vars.getString("%am_backup_request_pending_count"));
+            assertTrue(vars.getString("%am_backup_request_history_json")
+                    .contains("backup_completion_timeout"));
+        } finally {store.delete();new java.io.File(store+".bak").delete();new java.io.File(store+".new").delete();}
+    }
+
+    @Test public void testApkReceiptHistoryNeverLeaksOtherUserOnDevice() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05d-history-"+id()+".json");
+        String pkg="com.example.amt05d_device";
+        try {
+            TaskerApkBackupJournal ledger = new TaskerApkBackupJournal(store);
+            String foreign="Tasker-"+java.util.UUID.randomUUID();
+            ledger.enqueue(pkg, 10, foreign);
+            ledger.enqueue(pkg, 0, "Tasker-"+java.util.UUID.randomUUID());
+            android.os.Bundle vars=ledger.latest(pkg, 0);
+            assertEquals("1",vars.getString("%am_backup_request_pending_count"));
+            assertFalse(vars.getString("%am_backup_request_history_json").contains(foreign));
+        } finally {store.delete();new java.io.File(store+".bak").delete();new java.io.File(store+".new").delete();}
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");

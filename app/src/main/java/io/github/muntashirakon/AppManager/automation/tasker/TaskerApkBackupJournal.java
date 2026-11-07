@@ -34,6 +34,7 @@ public final class TaskerApkBackupJournal {
     private static final String STORE = "tasker_apk_backup_requests_v1.json";
     private static final int SCHEMA = 1;
     private static final int LIMIT = 64;
+    private static final int HISTORY_LIMIT = 12;
     private static final int MAX_BYTES = 65536;
     private static final long STALE_MS = 2L * 60L * 60L * 1000L;
     private static final int FLAGS = BackupFlags.BACKUP_APK_FILES | BackupFlags.BACKUP_MULTIPLE;
@@ -117,12 +118,37 @@ public final class TaskerApkBackupJournal {
         }
     }
 
+    /**
+     * Reclaims capacity from expired receipts only. The original backup may
+     * have finished after a crash, so this records UNKNOWN, never FAILED or
+     * SUCCEEDED, and deliberately performs no retry or file mutation.
+     * Caller holds IO_LOCK and persists the result atomically with its enqueue.
+     */
+    private static void expireStalePending(JSONArray records, long now) throws IOException {
+        try {
+            for (int i = 0; i < records.length(); ++i) {
+                JSONObject record = records.getJSONObject(i);
+                String status = record.getString("status");
+                long updated = record.getLong("updated_ms");
+                if (pending(status) && now >= updated && now - updated > STALE_MS) {
+                    record.put("status", "unknown");
+                    record.put("error", "backup_completion_timeout");
+                    record.put("updated_ms", now);
+                }
+            }
+        } catch (JSONException malformed) {
+            throw new IOException("cannot recover malformed backup receipt", malformed);
+        }
+    }
+
     /** Saves a request before the foreground-service dispatch; never overrides a prior ID. */
     void enqueue(String pkg, int user, String name) throws IOException {
         if (!TaskerPackageQueryWire.validPackage(pkg) || user < 0 || !validName(name))
             throw new IOException("invalid backup request identity");
         synchronized (IO_LOCK) {
             JSONArray records = read();
+            final long recoveryNow = Math.max(1L, System.currentTimeMillis());
+            expireStalePending(records, recoveryNow);
             for (int i = 0; i < records.length(); i++) {
                 try {
                     if (name.equals(records.getJSONObject(i).getString("name")))
@@ -217,23 +243,50 @@ public final class TaskerApkBackupJournal {
         if (!TaskerPackageQueryWire.validPackage(pkg) || user < 0) return out;
         synchronized (IO_LOCK) {
             JSONArray records = read();
+            out.putString("%am_backup_request_pending_count", "0");
             JSONObject latest = null;
+            JSONArray history = new JSONArray();
+            int active = 0;
+            long now = System.currentTimeMillis();
             try {
-                for (int i = 0; i < records.length(); i++) {
+                // Reverse insertion order: newest first, bounded to 12 receipts.
+                // No cross-user data, archive paths, payload bytes or keys.
+                for (int i = records.length() - 1; i >= 0; --i) {
                     JSONObject rec = records.getJSONObject(i);
-                    if (pkg.equals(rec.getString("package")) && user == rec.getInt("user")
-                            && (latest == null || rec.getLong("created_ms") >= latest.getLong("created_ms")))
+                    if (!pkg.equals(rec.getString("package")) || user != rec.getInt("user"))
+                        continue;
+                    if (latest == null || rec.getLong("created_ms") > latest.getLong("created_ms"))
                         latest = rec;
+                    String observed = rec.getString("status");
+                    long updated = rec.getLong("updated_ms");
+                    if (pending(observed) && now >= updated && now - updated > STALE_MS)
+                        observed = "unknown";
+                    if (pending(observed)) ++active;
+                    if (history.length() < HISTORY_LIMIT) {
+                        JSONObject item = new JSONObject();
+                        item.put("name", rec.getString("name"));
+                        item.put("status", observed);
+                        item.put("error", "unknown".equals(observed) && pending(rec.getString("status"))
+                                ? "backup_completion_timeout" : rec.getString("error"));
+                        item.put("updated_ms", updated);
+                        item.put("verified", "succeeded".equals(observed));
+                        history.put(item);
+                    }
                 }
+                out.putString("%am_backup_request_pending_count", Integer.toString(active));
+                out.putString("%am_backup_request_history_json", history.toString());
                 if (latest == null) return out;
                 String status = latest.getString("status");
                 long timestamp = latest.getLong("updated_ms");
                 // Status is indeterminate after an abandoned request; no automatic retry.
-                if (pending(status) && System.currentTimeMillis() - timestamp > STALE_MS)
+                String observedError = latest.getString("error");
+                if (pending(status) && now >= timestamp && now - timestamp > STALE_MS) {
                     status = "unknown";
+                    observedError = "backup_completion_timeout";
+                }
                 out.putString("%am_backup_request_name", latest.getString("name"));
                 out.putString("%am_backup_request_status", status);
-                out.putString("%am_backup_request_error", latest.getString("error"));
+                out.putString("%am_backup_request_error", observedError);
                 out.putString("%am_backup_request_updated_ms", Long.toString(timestamp));
                 out.putString("%am_backup_request_verified", Boolean.toString("succeeded".equals(status)));
                 return out;
@@ -248,6 +301,8 @@ public final class TaskerApkBackupJournal {
         out.putString("%am_backup_request_error", "");
         out.putString("%am_backup_request_updated_ms", "");
         out.putString("%am_backup_request_verified", "false");
+        out.putString("%am_backup_request_pending_count", "");
+        out.putString("%am_backup_request_history_json", "[]");
         return out;
     }
 

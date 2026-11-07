@@ -105,6 +105,7 @@ assert int(r.get('passed', 0)) >= 2, r
 assert int(r.get('passed', 0)) >= 12, ('AMT05A_INSTRUMENTATION_COVERAGE_INCOMPLETE', r)
 assert int(r.get('passed', 0)) >= 14, ('AMT05B_NEGATIVE_DEVICE_COVERAGE_INCOMPLETE', r)
 assert int(r.get('passed', 0)) >= 17, ('AMT05C_RECEIPT_DEVICE_COVERAGE_INCOMPLETE', r)
+assert int(r.get('passed', 0)) >= 19, ('AMT05D_RECEIPT_RECOVERY_DEVICE_COVERAGE_INCOMPLETE', r)
 assert int(r.get('failed', 0)) == 0, r
 assert int(r.get('executed', 0)) >= 2, r
 assert int(r.get('returncode', 1)) == 0, r

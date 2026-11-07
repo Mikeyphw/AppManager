@@ -106,6 +106,98 @@ public final class TaskerApkBackupJournalTest {
         } finally { cleanup(path); }
     }
 
+    @Test public void expiredPendingReceiptsReclaimCapacityButNeverClaimSuccess() throws Exception {
+        File path = temporary();
+        try {
+            TaskerApkBackupJournal journal = new TaskerApkBackupJournal(path);
+            for (int i = 0; i < 64; ++i) journal.enqueue(pkg(), 0, request());
+            org.json.JSONObject root = new org.json.JSONObject(new String(
+                    java.nio.file.Files.readAllBytes(path.toPath()), StandardCharsets.UTF_8));
+            org.json.JSONArray records = root.getJSONArray("records");
+            long old = System.currentTimeMillis() - 3L * 60L * 60L * 1000L;
+            for (int i = 0; i < records.length(); ++i) {
+                org.json.JSONObject item = records.getJSONObject(i);
+                item.put("created_ms", old - i);
+                item.put("updated_ms", old - i);
+            }
+            java.nio.file.Files.write(path.toPath(), root.toString().getBytes(StandardCharsets.UTF_8));
+            String newRequest = request();
+            journal.enqueue(pkg(), 0, newRequest);
+            Bundle result = journal.latest(pkg(), 0);
+            assertEquals(newRequest, result.getString("%am_backup_request_name"));
+            assertEquals("queued", result.getString("%am_backup_request_status"));
+            assertEquals("1", result.getString("%am_backup_request_pending_count"));
+            assertEquals("false", result.getString("%am_backup_request_verified"));
+            assertTrue(result.getString("%am_backup_request_history_json")
+                    .contains("backup_completion_timeout"));
+            org.json.JSONObject after = new org.json.JSONObject(new String(
+                    java.nio.file.Files.readAllBytes(path.toPath()), StandardCharsets.UTF_8));
+            org.json.JSONArray entries = after.getJSONArray("records");
+            assertEquals(64, entries.length());
+            int unknown = 0;
+            for (int i=0; i<entries.length(); i++) {
+                org.json.JSONObject item = entries.getJSONObject(i);
+                if ("unknown".equals(item.getString("status"))) ++unknown;
+                assertNotEquals("succeeded", item.getString("status"));
+            }
+            assertEquals(63, unknown);
+        } finally { cleanup(path); }
+    }
+
+    @Test public void boundedHistoryDoesNotLeakOtherPackagesOrUsers() throws Exception {
+        File path = temporary();
+        try {
+            TaskerApkBackupJournal journal = new TaskerApkBackupJournal(path);
+            String oldest = request();
+            journal.enqueue(pkg(), 0, oldest);
+            for (int i = 0; i < 15; i++) journal.enqueue(pkg(), 0, request());
+            String crossUser = request(); String crossPkg = request();
+            journal.enqueue(pkg(), 10, crossUser);
+            journal.enqueue("com.example.foreign", 0, crossPkg);
+            Bundle found = journal.latest(pkg(), 0);
+            org.json.JSONArray items = new org.json.JSONArray(found.getString("%am_backup_request_history_json"));
+            assertEquals(12, items.length());
+            assertEquals("16", found.getString("%am_backup_request_pending_count"));
+            String json = items.toString();
+            assertFalse(json.contains(crossUser));
+            assertFalse(json.contains(crossPkg));
+            assertFalse(json.contains(oldest));
+            assertFalse(json.contains("relativeDir"));
+        } finally { cleanup(path); }
+    }
+
+    @Test public void equalTimestampKeepsMostRecentInsertedRequest() throws Exception {
+        File path = temporary();
+        try {
+            TaskerApkBackupJournal journal = new TaskerApkBackupJournal(path);
+            String first=request(), second=request();
+            journal.enqueue(pkg(),0,first);journal.enqueue(pkg(),0,second);
+            org.json.JSONObject root=new org.json.JSONObject(new String(
+                    java.nio.file.Files.readAllBytes(path.toPath()),StandardCharsets.UTF_8));
+            org.json.JSONArray records=root.getJSONArray("records");
+            long earlier=records.getJSONObject(0).getLong("created_ms");
+            records.getJSONObject(1).put("created_ms",earlier);
+            java.nio.file.Files.write(path.toPath(),root.toString().getBytes(StandardCharsets.UTF_8));
+            assertEquals(second,journal.latest(pkg(),0).getString("%am_backup_request_name"));
+        } finally { cleanup(path); }
+    }
+
+    @Test public void clockRollbackCannotPrematurelyExpireRunningRequest() throws Exception {
+        File path = temporary();
+        try {
+            TaskerApkBackupJournal journal = new TaskerApkBackupJournal(path);
+            String name=request();journal.enqueue(pkg(),0,name);
+            org.json.JSONObject root=new org.json.JSONObject(new String(
+                    java.nio.file.Files.readAllBytes(path.toPath()),StandardCharsets.UTF_8));
+            org.json.JSONObject rec=root.getJSONArray("records").getJSONObject(0);
+            rec.put("updated_ms",System.currentTimeMillis()+3600000L);
+            java.nio.file.Files.write(path.toPath(),root.toString().getBytes(StandardCharsets.UTF_8));
+            Bundle found=journal.latest(pkg(),0);
+            assertEquals("queued",found.getString("%am_backup_request_status"));
+            assertEquals("1",found.getString("%am_backup_request_pending_count"));
+        } finally { cleanup(path); }
+    }
+
     @Test public void unknownDispatchCannotClaimVerifiedOutcome() throws Exception {
         File path = temporary(); String name = request();
         try {

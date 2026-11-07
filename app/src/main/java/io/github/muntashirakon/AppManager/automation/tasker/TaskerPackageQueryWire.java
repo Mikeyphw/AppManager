@@ -85,7 +85,9 @@ public final class TaskerPackageQueryWire {
                 "%am_backup_request_status\nQueued, running, succeeded, failed, unverified or unknown",
                 "%am_backup_request_error\nBackup request failure/uncertainty code",
                 "%am_backup_request_verified\nTrue only after native completion plus matching backup metadata",
-                "%am_backup_request_updated_ms\nReceipt updated time (milliseconds)"
+                "%am_backup_request_updated_ms\nReceipt updated time (milliseconds)",
+                "%am_backup_request_pending_count\nNon-expired queued or running APK requests for this package",
+                "%am_backup_request_history_json\nLatest 12 current-user APK backup receipts (no file paths)"
         });
         return out;
     }
