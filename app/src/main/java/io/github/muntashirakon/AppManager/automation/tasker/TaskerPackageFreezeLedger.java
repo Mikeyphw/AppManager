@@ -49,6 +49,11 @@ final class TaskerPackageFreezeLedger {
         file = new AtomicFile(new File(context.getApplicationContext().getNoBackupFilesDir(), FILE));
     }
 
+    /** Isolated device-test file; cannot alter the live per-device ledger. */
+    TaskerPackageFreezeLedger(File isolatedFile) {
+        file = new AtomicFile(isolatedFile);
+    }
+
     private static boolean validPreviousState(int state) {
         return state == PackageManager.COMPONENT_ENABLED_STATE_DEFAULT
                 || state == PackageManager.COMPONENT_ENABLED_STATE_ENABLED

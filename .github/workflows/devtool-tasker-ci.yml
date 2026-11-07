@@ -50,6 +50,7 @@ jobs:
           python3 scripts/devtool/check_amt04b_contract.py --check
           python3 scripts/devtool/check_amt04b2_contract.py --check
           python3 scripts/devtool/check_amt04b2b_contract.py --check
+          python3 scripts/devtool/check_amt05a_contract.py --check
           python3 -m unittest discover -s scripts/devtool -p 'test_*.py' -v
           sh -n devtoolw
       - name: Verify upstream merge compatibility without changing the tree

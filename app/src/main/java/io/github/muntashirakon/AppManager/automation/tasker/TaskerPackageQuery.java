@@ -30,6 +30,11 @@ public final class TaskerPackageQuery {
         vars.putString("%am_installer", installer);
         vars.putString("%am_enabled", enabled);
         vars.putString("%am_system", system);
+        // Always clear new fields: Tasker variables must never retain stale inventory.
+        vars.putString("%am_backup_status", "not_queried");
+        vars.putString("%am_backup_count", "");
+        vars.putString("%am_backup_latest_ms", "");
+        vars.putString("%am_backups_json", "{}");
         try {
             JSONObject json = new JSONObject();
             json.put("success", success);
@@ -89,9 +94,12 @@ public final class TaskerPackageQuery {
             } catch (IllegalArgumentException | SecurityException ignored) {
                 // The visible ApplicationInfo flag is still the conservative fallback.
             }
-            return result(pkg, true, true, info.versionName == null ? "" : info.versionName,
+            Bundle vars = result(pkg, true, true, info.versionName == null ? "" : info.versionName,
                     Long.toString(code), Integer.toString(ai.uid), installer == null ? "" : installer,
                     Boolean.toString(enabled), Boolean.toString((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0), "");
+            // Optional inventory failure never falsifies the original package lookup.
+            vars.putAll(TaskerBackupInventory.query(pkg));
+            return vars;
         } catch (PackageManager.NameNotFoundException missing) {
             return result(pkg, true, false, "", "", "", "", "", "", "");
         } catch (SecurityException denied) {

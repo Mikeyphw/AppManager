@@ -76,7 +76,11 @@ public final class TaskerPackageQueryWire {
                 "%am_version_name\nVersion name", "%am_version_code\nVersion code",
                 "%am_uid\nUID", "%am_installer\nInstaller package",
                 "%am_enabled\nEnabled", "%am_system\nSystem app",
-                "%am_json\nStructured package metadata JSON"
+                "%am_json\nStructured package metadata JSON",
+                "%am_backup_status\nBackup inventory availability",
+                "%am_backup_count\nBackups for the current Android user",
+                "%am_backup_latest_ms\nLatest backup timestamp (milliseconds)",
+                "%am_backups_json\nBounded backup metadata only (no file paths)"
         });
         return out;
     }

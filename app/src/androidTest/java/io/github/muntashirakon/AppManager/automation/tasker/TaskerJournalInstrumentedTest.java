@@ -77,6 +77,78 @@ public class TaskerJournalInstrumentedTest {
         assertEquals("self_target_denied", restored.getString("%am_error"));
     }
 
+    @Test public void testBackupInventoryDeviceScopedReadOnly() throws Exception {
+        io.github.muntashirakon.AppManager.db.entity.Backup own =
+                new io.github.muntashirakon.AppManager.db.entity.Backup();
+        own.packageName = "com.example.amt05target";
+        own.userId = 10;
+        own.backupName = "fixture";
+        own.backupTime = 1234L;
+        own.relativeDir = "secret/never/exposed";
+        io.github.muntashirakon.AppManager.db.entity.Backup foreign =
+                new io.github.muntashirakon.AppManager.db.entity.Backup();
+        foreign.packageName = own.packageName;
+        foreign.userId = 11;
+        foreign.backupName = "private_other_user";
+        android.os.Bundle vars = TaskerBackupInventory.summarize(own.packageName, 10,
+                java.util.Arrays.asList(own, foreign));
+        assertEquals("available", vars.getString("%am_backup_status"));
+        assertEquals("1", vars.getString("%am_backup_count"));
+        assertFalse(vars.getString("%am_backups_json").contains("private_other_user"));
+        assertFalse(vars.getString("%am_backups_json").contains("secret/never/exposed"));
+    }
+
+    @Test public void testLedgerSurvivesReopenAndRemovesOnlyMatchingSnapshot() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05-ledger-"+id()+".json");
+        String pkg = "com.example.amt05ledger";
+        TaskerPackageFreezeLedger.Entry saved = new TaskerPackageFreezeLedger.Entry(42000,
+                11111L, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_DEFAULT);
+        try {
+            TaskerPackageFreezeLedger first = new TaskerPackageFreezeLedger(store);
+            first.record(pkg, saved);
+            TaskerPackageFreezeLedger reopened = new TaskerPackageFreezeLedger(store);
+            assertTrue(reopened.find(pkg).sameAs(saved));
+            assertFalse(reopened.find(pkg).matches(42000, 22222L));
+            reopened.forgetMatching(pkg, saved);
+            assertNull(new TaskerPackageFreezeLedger(store).find(pkg));
+        } finally {
+            store.delete(); new java.io.File(store+".bak").delete();
+            new java.io.File(store+".new").delete();
+        }
+    }
+
+    @Test public void testLedgerCorruptionFailsClosedOnDevice() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05-corrupt-"+id()+".json");
+        try {
+            try (java.io.FileOutputStream output = new java.io.FileOutputStream(store)) {
+                output.write("not JSON".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            try {
+                new TaskerPackageFreezeLedger(store).find("com.example.amt05ledger");
+                fail("damaged freeze ledger must not be treated as an empty ledger");
+            } catch (java.io.IOException expected) { /* fail-closed */ }
+        } finally { store.delete(); new java.io.File(store+".bak").delete(); }
+    }
+
+    @Test public void testLedgerNeverOverwritesPriorSnapshotOnDevice() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05-guard-"+id()+".json");
+        String pkg = "com.example.amt05guard";
+        TaskerPackageFreezeLedger.Entry saved = new TaskerPackageFreezeLedger.Entry(12500,
+                9000L, android.content.pm.PackageManager.COMPONENT_ENABLED_STATE_ENABLED);
+        try {
+            TaskerPackageFreezeLedger ledger = new TaskerPackageFreezeLedger(store);
+            ledger.record(pkg, saved);
+            try {
+                ledger.record(pkg, new TaskerPackageFreezeLedger.Entry(12501, 9000L, 0));
+                fail("duplicate freeze record replaced existing snapshot");
+            } catch (java.io.IOException expected) { /* fail-closed */ }
+            assertTrue(new TaskerPackageFreezeLedger(store).find(pkg).sameAs(saved));
+        } finally { store.delete(); new java.io.File(store+".bak").delete(); }
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");
