@@ -24,6 +24,12 @@ public final class TaskerPackageManageTest {
         assertTrue(TaskerPackageManageWire.validOperation("unfreeze"));
         assertTrue(TaskerPackageManageWire.validOperation("force_stop"));
         assertTrue(TaskerPackageManageWire.validOperation("backup_apk"));
+        assertTrue(TaskerPackageManageWire.validOperation("backup_data"));
+        String fixedRestore = TaskerPackageManageWire.restoreOperation(
+                "Tasker-12345678-1234-1234-1234-123456789abc", 12000, 123456789L);
+        assertTrue(TaskerPackageManageWire.validOperation(fixedRestore));
+        assertFalse(TaskerPackageManageWire.validOperation("restore_data"));
+        assertFalse(TaskerPackageManageWire.validOperation("restore_data:latest"));
         assertFalse(TaskerPackageManageWire.validOperation("suspend"));
     }
 

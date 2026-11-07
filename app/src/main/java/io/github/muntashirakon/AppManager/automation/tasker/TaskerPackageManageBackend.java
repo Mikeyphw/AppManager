@@ -27,13 +27,15 @@ public final class TaskerPackageManageBackend {
         vars.putString("%am_success", Boolean.toString(success));
         vars.putString("%am_status", success
                 ? ((TaskerPackageManageWire.BACKUP_APK.equals(operation)
-                    || TaskerPackageManageWire.BACKUP_DATA.equals(operation)) ? "queued" :
+                    || TaskerPackageManageWire.BACKUP_DATA.equals(operation)
+                    || TaskerPackageManageWire.isDataRestore(operation)) ? "queued" :
                     TaskerPackageManageWire.FORCE_STOP.equals(operation) ? "dispatched" : "success")
                 : "failed");
         vars.putString("%am_verified", Boolean.toString(success
                 && !TaskerPackageManageWire.FORCE_STOP.equals(operation)
                 && !TaskerPackageManageWire.BACKUP_APK.equals(operation)
-                && !TaskerPackageManageWire.BACKUP_DATA.equals(operation)));
+                && !TaskerPackageManageWire.BACKUP_DATA.equals(operation)
+                && !TaskerPackageManageWire.isDataRestore(operation)));
         vars.putString("%am_error", error);
         vars.putString("%am_package", pkg == null ? "" : pkg);
         vars.putString("%am_operation", operation == null ? "" : operation);
@@ -41,6 +43,7 @@ public final class TaskerPackageManageBackend {
         vars.putString("%am_new_state", current);
         vars.putString("%am_restore_recorded", "");
         vars.putString("%am_backup_name", "");
+        vars.putString("%am_restore_request_id", "");
         return vars;
     }
 
@@ -148,6 +151,13 @@ if (TaskerPackageManageWire.BACKUP_DATA.equals(operation)) {
         return result(pkg, operation, false, "", "", "backend_data_permission_required");
     return TaskerDataBackupDispatcher.dispatch(ctx, pkg, user);
 }
+                if (TaskerPackageManageWire.isDataRestore(operation)) {
+                    // Backup name, package UID and installation timestamp were HMAC-bound
+                    // by the trusted Tasker editor. The native service checks them again.
+                    if (!SelfPermissions.canWriteToDataData())
+                        return result(pkg, operation, false, "", "", "backend_data_permission_required");
+                    return TaskerDataRestoreDispatcher.dispatch(ctx, pkg, user, operation);
+                }
                 if (TaskerPackageManageWire.FORCE_STOP.equals(operation)) {
                     // The existing App Manager backend must have this privilege already.
                     // Android exposes no reliable readback to prove a process was killed;

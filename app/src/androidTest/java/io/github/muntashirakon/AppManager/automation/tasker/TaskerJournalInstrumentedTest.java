@@ -290,6 +290,51 @@ public class TaskerJournalInstrumentedTest {
         }
     }
 
+    @Test public void testRestoreOwnPackageDeniedBeforeNativeService() {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        String op = TaskerPackageManageWire.restoreOperation(
+                "Tasker-12345678-1234-1234-1234-123456789abc", 12345, 123456L);
+        android.os.Bundle b = TaskerPackageManageBackend.execute(ctx, ctx.getPackageName(), op);
+        assertEquals("self_target_denied", b.getString("%am_error"));
+    }
+
+    @Test public void testRestoreProtectedAutomationHostDeniedBeforeNativeService() {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        String op = TaskerPackageManageWire.restoreOperation(
+                "Tasker-12345678-1234-1234-1234-123456789abc", 12345, 123456L);
+        android.os.Bundle b = TaskerPackageManageBackend.execute(ctx,
+                TaskerPluginWire.TASKER_PACKAGE, op);
+        assertEquals("tasker_target_denied", b.getString("%am_error"));
+    }
+
+    @Test public void testRestoreReceiptSurvivesObjectReopenWithUnverifiedStatus() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File file = new java.io.File(ctx.getCacheDir(), "amt06b-restore-" + id() + ".json");
+        String pkg = "com.example.amt06b";
+        String request = "Tasker-Restore-12345678-1234-1234-1234-123456789abc";
+        TaskerDataRestoreGate.Selection selection = new TaskerDataRestoreGate.Selection(pkg,
+                "Tasker-12345678-1234-1234-1234-123456789abc", "backups/private",
+                0, 12500, 13579L, 123L);
+        try {
+            TaskerDataRestoreJournal journal = new TaskerDataRestoreJournal(file);
+            journal.enqueue(selection, request);
+            assertEquals("queued", new TaskerDataRestoreJournal(file).latest(pkg, 0)
+                    .getString("%am_restore_request_status"));
+            assertEquals("false", new TaskerDataRestoreJournal(file).latest(pkg, 0)
+                    .getString("%am_restore_request_verified"));
+            assertEquals("none", new TaskerDataRestoreJournal(file).latest(pkg, 10)
+                    .getString("%am_restore_request_status"));
+        } finally {
+            file.delete(); new java.io.File(file + ".bak").delete();
+            new java.io.File(file + ".new").delete();
+        }
+    }
+
+    @Test public void testRestoreOperationNeverAcceptsDynamicPackageOrBackup() {
+        assertFalse(TaskerPackageManageWire.isDataRestore("restore_data:%backup"));
+        assertFalse(TaskerPackageManageWire.isDataRestore("restore_data:latest:123:456"));
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");

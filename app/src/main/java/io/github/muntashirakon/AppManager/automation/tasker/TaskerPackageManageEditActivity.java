@@ -2,6 +2,10 @@
 package io.github.muntashirakon.AppManager.automation.tasker;
 
 import android.app.Activity;
+import android.os.UserHandleHidden;
+import android.view.View;
+import android.widget.AdapterView;
+import android.widget.CheckBox;
 import android.content.pm.ApplicationInfo;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
@@ -15,12 +19,15 @@ import android.widget.TextView;
 import androidx.annotation.Nullable;
 
 import java.io.IOException;
+import io.github.muntashirakon.AppManager.self.SelfPermissions;
 
 /** User saves a fixed package+operation, not a reusable arbitrary mutator credential. */
 public final class TaskerPackageManageEditActivity extends Activity {
     private EditText packageId;
     private Spinner operation;
     private TextView feedback;
+    private EditText restoreName;
+    private CheckBox restoreConsent;
 
     @Override protected void onCreate(@Nullable Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -55,16 +62,40 @@ public final class TaskerPackageManageEditActivity extends Activity {
                 new String[] {"Enable application", "Disable application", "Force-stop application (irreversible)",
                         "Freeze (remember original state)", "Unfreeze (restore saved state)",
                         "Backup APK (new named backup; does not overwrite)",
-                        "Backup APK + internal app data (requires privileged access)"});
+                        "Backup APK + internal app data (requires privileged access)",
+                        "Restore INTERNAL data from fixed Tasker backup (destructive)"});
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         operation.setAdapter(adapter);
-        operation.setSelection(TaskerPackageManageWire.BACKUP_DATA.equals(savedOperation) ? 6 :
+        operation.setSelection(TaskerPackageManageWire.isDataRestore(savedOperation) ? 7 :
+                TaskerPackageManageWire.BACKUP_DATA.equals(savedOperation) ? 6 :
                 TaskerPackageManageWire.BACKUP_APK.equals(savedOperation) ? 5 :
                 TaskerPackageManageWire.UNFREEZE.equals(savedOperation) ? 4 :
                 TaskerPackageManageWire.FREEZE.equals(savedOperation) ? 3 :
                 TaskerPackageManageWire.FORCE_STOP.equals(savedOperation) ? 2 :
                 TaskerPackageManageWire.DISABLE.equals(savedOperation) ? 1 : 0);
         root.addView(operation);
+        restoreName = new EditText(this);
+        restoreName.setSingleLine(true);
+        restoreName.setHint("Tasker-xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx");
+        if (TaskerPackageManageWire.isDataRestore(savedOperation))
+            restoreName.setText(TaskerPackageManageWire.restoreName(savedOperation));
+        root.addView(restoreName);
+        restoreConsent = new CheckBox(this);
+        restoreConsent.setText("I authorize overwriting this app's INTERNAL DATA with the selected snapshot. " +
+                "App Manager cannot guarantee rollback after a partial restore.");
+        restoreConsent.setChecked(false);
+        root.addView(restoreConsent);
+        operation.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                restoreName.setVisibility(pos == 7 ? View.VISIBLE : View.GONE);
+                restoreConsent.setVisibility(pos == 7 ? View.VISIBLE : View.GONE);
+                if (pos != 7) restoreConsent.setChecked(false);
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+        int restoreVisibility = operation.getSelectedItemPosition() == 7 ? View.VISIBLE : View.GONE;
+        restoreName.setVisibility(restoreVisibility);
+        restoreConsent.setVisibility(restoreVisibility);
         feedback = new TextView(this);
         feedback.setText("This task uses App Manager's existing backend. " +
                 "Each request may use storage; completion is not confirmed by Tasker. " +
@@ -113,6 +144,27 @@ public final class TaskerPackageManageEditActivity extends Activity {
             ApplicationInfo info = getPackageManager().getApplicationInfo(pkg, 0);
             if ((info.flags & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0) {
                 feedback.setText("System apps cannot be modified from this Tasker action."); return;
+            }
+            if (operation.getSelectedItemPosition() == 7) {
+                if (!restoreConsent.isChecked()) {
+                    feedback.setText("Explicit internal-data restore consent is required."); return;
+                }
+                String name = restoreName.getText().toString().trim();
+                if (!TaskerPackageManageWire.validRestoreName(name)) {
+                    feedback.setText("Enter an exact Tasker backup UUID name."); return;
+                }
+                if (!SelfPermissions.canWriteToDataData()) {
+                    feedback.setText("App Manager needs its existing privileged data access."); return;
+                }
+                android.content.pm.PackageInfo identity = getPackageManager().getPackageInfo(pkg, 0);
+                selected = TaskerPackageManageWire.restoreOperation(name, info.uid,
+                        identity.firstInstallTime);
+                try {
+                    TaskerDataRestoreGate.select(this, pkg, UserHandleHidden.myUserId(), selected);
+                } catch (IOException | RuntimeException denied) {
+                    feedback.setText("Backup missing, ambiguous, incompatible, or changed. Restore not saved.");
+                    return;
+                }
             }
             String proof = TaskerPackageManageAccess.forTrustedEditor(this, pkg, selected);
             setResult(RESULT_OK, TaskerPackageManageWire.editResult(

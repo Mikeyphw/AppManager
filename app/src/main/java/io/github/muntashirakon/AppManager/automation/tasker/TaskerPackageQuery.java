@@ -38,6 +38,7 @@ public final class TaskerPackageQuery {
         vars.putString("%am_backups_json", "{}");
         // Clear receipts on every invocation, including negative/error package queries.
         vars.putAll(TaskerApkBackupJournal.empty());
+        vars.putAll(TaskerDataRestoreJournal.empty());
         try {
             JSONObject json = new JSONObject();
             json.put("success", success);
@@ -103,6 +104,7 @@ public final class TaskerPackageQuery {
             // Optional inventory failure never falsifies the original package lookup.
             vars.putAll(TaskerBackupInventory.query(pkg));
             vars.putAll(TaskerApkBackupJournal.query(context, pkg, UserHandleHidden.myUserId()));
+            vars.putAll(TaskerDataRestoreJournal.query(context, pkg, UserHandleHidden.myUserId()));
             return vars;
         } catch (PackageManager.NameNotFoundException missing) {
             return result(pkg, true, false, "", "", "", "", "", "", "");

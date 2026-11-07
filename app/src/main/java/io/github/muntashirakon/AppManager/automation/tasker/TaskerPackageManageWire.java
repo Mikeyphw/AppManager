@@ -18,13 +18,45 @@ public final class TaskerPackageManageWire {
     public static final String UNFREEZE = "unfreeze";
     public static final String BACKUP_APK = "backup_apk";
     public static final String BACKUP_DATA = "backup_data";
+    private static final String RESTORE_PREFIX = "restore_data:";
+    private static final String RESTORE_NAME = "Tasker-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}";
+
+    public static boolean validRestoreName(String name) {
+        return name != null && name.matches(RESTORE_NAME);
+    }
+    public static String restoreOperation(String name, int uid, long installedAt) {
+        if (!validRestoreName(name) || uid < 0 || installedAt <= 0)
+            throw new IllegalArgumentException("invalid fixed restore binding");
+        return RESTORE_PREFIX + name + ":" + uid + ":" + installedAt;
+    }
+    public static boolean isDataRestore(String operation) {
+        if (operation == null || !operation.startsWith(RESTORE_PREFIX)) return false;
+        String[] parts = operation.split(":", -1);
+        if (parts.length != 4 || !validRestoreName(parts[1]) ||
+                !parts[2].matches("[0-9]{1,10}") || !parts[3].matches("[0-9]{1,20}")) return false;
+        try { return Integer.parseInt(parts[2]) >= 0 && Long.parseLong(parts[3]) > 0; }
+        catch (NumberFormatException invalid) { return false; }
+    }
+    public static String restoreName(String op) {
+        if (!isDataRestore(op)) throw new IllegalArgumentException("invalid restore operation");
+        return op.split(":", -1)[1];
+    }
+    public static int restoreUid(String op) {
+        if (!isDataRestore(op)) throw new IllegalArgumentException("invalid restore operation");
+        return Integer.parseInt(op.split(":", -1)[2]);
+    }
+    public static long restoreInstalledAt(String op) {
+        if (!isDataRestore(op)) throw new IllegalArgumentException("invalid restore operation");
+        return Long.parseLong(op.split(":", -1)[3]);
+    }
 
     private TaskerPackageManageWire() { }
 
     public static boolean validOperation(String operation) {
         return ENABLE.equals(operation) || DISABLE.equals(operation) || FORCE_STOP.equals(operation)
                 || FREEZE.equals(operation) || UNFREEZE.equals(operation)
-                || BACKUP_APK.equals(operation) || BACKUP_DATA.equals(operation);
+                || BACKUP_APK.equals(operation) || BACKUP_DATA.equals(operation)
+                || isDataRestore(operation);
     }
 
     public static Bundle configuration(String pkg, String operation, String proof) {
