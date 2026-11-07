@@ -4,4 +4,6 @@
     <string name="tasker_action_plugin">App Manager · Profile Action</string>
     <string name="tasker_event_plugin">App Manager · Profile Event</string>
     <string name="tasker_state_plugin">App Manager · Profile State</string>
+    <string name="tasker_package_query_plugin">App Manager · Query Package</string>
+    <string name="tasker_package_manage_plugin">App Manager · Manage Package</string>
 </resources>

@@ -27,7 +27,60 @@ import io.github.muntashirakon.AppManager.profiles.struct.BaseProfile;
  */
 public final class TaskerActionReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {
-        if (!TaskerPluginWire.FIRE_ACTION.equals(intent.getAction())) return;
+        if (intent == null || !TaskerPluginWire.FIRE_ACTION.equals(intent.getAction())) return;
+        // Single registered FIRE_SETTING receiver: three distinct Tasker editors,
+        // but only one exported dispatch entry point. Preserve legacy profile actions.
+        Bundle marker = null;
+        boolean packageQuery = false;
+        boolean packageManage = false;
+        try {
+            marker = TaskerPluginWire.fromIntent(intent);
+            if (marker != null) {
+                packageQuery = marker.containsKey(TaskerPackageQueryWire.KEY_VERSION);
+                packageManage = marker.containsKey(TaskerPackageManageWire.KEY_VERSION);
+            }
+        } catch (RuntimeException ignored) {
+            // An unparcelable Bundle must fall through to the legacy deny path.
+            marker = null;
+        }
+        if (packageQuery || packageManage) {
+            // Both package actions deliver results only by ordered Tasker broadcast.
+            if (!isOrderedBroadcast()) return;
+            String sender = Build.VERSION.SDK_INT >= 34 ? getSentFromPackage() : null;
+            final boolean trustedSender = sender == null || TaskerPluginWire.trustedEditor(sender);
+            final boolean query = packageQuery;
+            final boolean manage = packageManage;
+            final Bundle saved = new Bundle(marker);
+            final Context app = context.getApplicationContext();
+            final PendingResult pending = goAsync();
+            new Thread(() -> {
+                Bundle vars;
+                try {
+                    if (!trustedSender) {
+                        vars = manage ? TaskerPackageManageBackend.failure("untrusted_host")
+                                : TaskerPackageQuery.failure("untrusted_host");
+                    } else if (query && manage) {
+                        // A malicious configuration must never cross two capability domains.
+                        vars = TaskerPackageManageBackend.failure("ambiguous_plugin_configuration");
+                    } else if (manage) {
+                        vars = TaskerPackageManageReceiver.evaluate(app, saved);
+                    } else {
+                        vars = TaskerPackageQueryReceiver.evaluate(app, saved);
+                    }
+                } catch (RuntimeException ignored) {
+                    vars = manage ? TaskerPackageManageBackend.failure("operation_dispatch_failed")
+                            : TaskerPackageQuery.failure("query_dispatch_failed");
+                }
+                try {
+                    Bundle reply = new Bundle();
+                    reply.putBundle(TaskerPluginWire.EXTRA_VARIABLES, vars);
+                    pending.setResultExtras(reply);
+                    pending.setResultCode("true".equals(vars.getString("%am_success"))
+                            ? TaskerPluginWire.RESULT_OK : TaskerPluginWire.RESULT_FAILED);
+                } finally { pending.finish(); }
+            }, manage ? "tasker-package-manage" : "tasker-package-query").start();
+            return;
+        }
         boolean ordered = isOrderedBroadcast();
         if (Build.VERSION.SDK_INT >= 34) {
             String sender = getSentFromPackage();
