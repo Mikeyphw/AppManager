@@ -218,7 +218,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          sdkmanager --install 'platforms;android-36' 'build-tools;36.1.0' 'platform-tools' 'cmake;3.22.1'
+          sdkmanager --install 'platforms;android-36' 'build-tools;36.1.0' 'platform-tools' 'cmake;3.22.1' 'ndk;27.0.12077973'
           git clone --no-checkout https://github.com/Mikeyphw/devtool.git "$RUNNER_TEMP/devtool-source"
           git -C "$RUNNER_TEMP/devtool-source" checkout --detach bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
           test "$(git -C "$RUNNER_TEMP/devtool-source" rev-parse HEAD)" = bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
@@ -250,21 +250,7 @@ jobs:
           disable-linux-hw-accel: false
           emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: |
-            bash -e -o pipefail <<'AMT03_EMULATOR_BASH'
-            : "${JAVA_HOME:?}"
-            python3 -m devtool.android_instrumentation "$PWD" --policy required               --device-serial emulator-5554 --runner androidx.test.runner.AndroidJUnitRunner               --class io.github.muntashirakon.AppManager.automation.tasker.TaskerJournalInstrumentedTest               --report "$RUNNER_TEMP/amt03-instrumentation.json"               2>&1 | tee "$RUNNER_TEMP/amt03-instrumentation.log"
-            python3 - <<'PYCHECK'
-            import json, pathlib, os
-            p = pathlib.Path(os.environ['RUNNER_TEMP']) / 'amt03-instrumentation.json'
-            assert p.is_file(), 'Devtool did not write Android instrumentation receipt'
-            r = json.loads(p.read_text())
-            assert r.get('status') in ('passed','success'), r
-            assert int(r.get('passed',0)) >= 2, r
-            assert int(r.get('failed',0)) == 0, r
-            print('AMT03_DEVICE_INSTRUMENTATION_PASS')
-            PYCHECK
-            AMT03_EMULATOR_BASH
+          script: bash scripts/devtool/amt03_hosted_instrumentation.sh
       - name: Upload instrumentation receipt and diagnostics
         if: always()
         uses: actions/upload-artifact@v4

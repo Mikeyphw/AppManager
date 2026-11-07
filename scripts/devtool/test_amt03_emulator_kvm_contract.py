@@ -38,12 +38,13 @@ class AMT03KvmContract(unittest.TestCase):
 
     def test_bash_wrapper_and_devtool_receipt_remain_strict(self):
         src = job_section()
-        self.assertIn("bash -e -o pipefail <<'AMT03_EMULATOR_BASH'", src)
-        self.assertIn('python3 -m devtool.android_instrumentation', src)
-        self.assertIn('--policy required', src)
-        self.assertIn("assert int(r.get('passed',0)) >= 2", src)
-        self.assertIn("assert int(r.get('failed',0)) == 0", src)
-        self.assertIn('AMT03_DEVICE_INSTRUMENTATION_PASS', src)
+        self.assertIn('script: bash scripts/devtool/amt03_hosted_instrumentation.sh', src)
+        runner = (ROOT / 'scripts/devtool/amt03_hosted_instrumentation.sh').read_text()
+        self.assertIn('python3 -B -m devtool.android_instrumentation', runner)
+        self.assertIn('--target app', runner)
+        self.assertIn("assert int(r.get('passed', 0)) >= 2", runner)
+        self.assertIn("assert int(r.get('failed', 0)) == 0", runner)
+        self.assertIn('AMT03_DEVICE_INSTRUMENTATION_PASS', runner)
         self.assertIn('if-no-files-found: warn', src)
 
     def test_kvm_step_uses_valid_bash(self):

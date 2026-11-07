@@ -53,7 +53,7 @@ CHECKS = {
         'testFinishedCannotBeCancelled', 'testHistoryBoundedResult'),
     'TaskerJournalInstrumentedTest.java': ('testCancelQueuedRequest', 'testClaimIsExclusive'),
     'devtool-tasker-ci.yml': ('device-instrumentation:', 'android-emulator-runner@v2',
-        'devtool.android_instrumentation', 'AMT03_DEVICE_INSTRUMENTATION_PASS'),
+        'bash scripts/devtool/amt03_hosted_instrumentation.sh'),
 }
 
 
