@@ -14,11 +14,14 @@ public final class TaskerPackageManageWire {
     public static final String ENABLE = "enable";
     public static final String DISABLE = "disable";
     public static final String FORCE_STOP = "force_stop";
+    public static final String FREEZE = "freeze";
+    public static final String UNFREEZE = "unfreeze";
 
     private TaskerPackageManageWire() { }
 
     public static boolean validOperation(String operation) {
-        return ENABLE.equals(operation) || DISABLE.equals(operation) || FORCE_STOP.equals(operation);
+        return ENABLE.equals(operation) || DISABLE.equals(operation) || FORCE_STOP.equals(operation)
+                || FREEZE.equals(operation) || UNFREEZE.equals(operation);
     }
 
     public static Bundle configuration(String pkg, String operation, String proof) {
@@ -61,7 +64,8 @@ public final class TaskerPackageManageWire {
                 "%am_error\nStructured failure reason", "%am_package\nExact package",
                 "%am_operation\nSelected operation", "%am_previous_state\nPrevious enabled setting",
                 "%am_new_state\nCurrent enabled setting",
-                "%am_verified\nWhether the requested effect was read back"
+                "%am_verified\nWhether the requested effect was read back",
+                "%am_restore_recorded\nSaved prior state (true, false or unknown)"
         });
         return out;
     }

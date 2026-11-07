@@ -67,6 +67,16 @@ public class TaskerJournalInstrumentedTest {
         assertEquals("self_target_denied", vars.getString("%am_error"));
     }
 
+    @Test public void testFreezeOwnPackageAlwaysDenied() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.os.Bundle frozen = TaskerPackageManageBackend.execute(context,
+                context.getPackageName(), "freeze");
+        android.os.Bundle restored = TaskerPackageManageBackend.execute(context,
+                context.getPackageName(), "unfreeze");
+        assertEquals("self_target_denied", frozen.getString("%am_error"));
+        assertEquals("self_target_denied", restored.getString("%am_error"));
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");

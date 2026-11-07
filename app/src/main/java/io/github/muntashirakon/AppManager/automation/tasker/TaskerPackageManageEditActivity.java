@@ -43,7 +43,7 @@ public final class TaskerPackageManageEditActivity extends Activity {
         title.setTextSize(22);
         root.addView(title);
         TextView instruction = new TextView(this);
-        instruction.setText("Fixed package only. No system apps or variables; force-stop cannot be undone and is not a verified process-state report.");
+        instruction.setText("Fixed user app only. Freeze saves its exact prior enabled state; unfreeze restores only an owned snapshot. Force-stop cannot be undone.");
         root.addView(instruction);
         packageId = new EditText(this);
         packageId.setSingleLine(true);
@@ -52,10 +52,13 @@ public final class TaskerPackageManageEditActivity extends Activity {
         root.addView(packageId);
         operation = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-                new String[] {"Enable application", "Disable application", "Force-stop application (irreversible)"});
+                new String[] {"Enable application", "Disable application", "Force-stop application (irreversible)",
+                        "Freeze (remember original state)", "Unfreeze (restore saved state)"});
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         operation.setAdapter(adapter);
-        operation.setSelection(TaskerPackageManageWire.FORCE_STOP.equals(savedOperation) ? 2 :
+        operation.setSelection(TaskerPackageManageWire.UNFREEZE.equals(savedOperation) ? 4 :
+                TaskerPackageManageWire.FREEZE.equals(savedOperation) ? 3 :
+                TaskerPackageManageWire.FORCE_STOP.equals(savedOperation) ? 2 :
                 TaskerPackageManageWire.DISABLE.equals(savedOperation) ? 1 : 0);
         root.addView(operation);
         feedback = new TextView(this);
@@ -76,7 +79,9 @@ public final class TaskerPackageManageEditActivity extends Activity {
 
     private void save() {
         String pkg = packageId.getText().toString().trim();
-        String selected = operation.getSelectedItemPosition() == 2
+        String selected = operation.getSelectedItemPosition() == 4
+                ? TaskerPackageManageWire.UNFREEZE : operation.getSelectedItemPosition() == 3
+                ? TaskerPackageManageWire.FREEZE : operation.getSelectedItemPosition() == 2
                 ? TaskerPackageManageWire.FORCE_STOP : operation.getSelectedItemPosition() == 1
                 ? TaskerPackageManageWire.DISABLE : TaskerPackageManageWire.ENABLE;
         if (!TaskerPackageQueryWire.validPackage(pkg)) {
@@ -89,6 +94,11 @@ public final class TaskerPackageManageEditActivity extends Activity {
         if (TaskerPackageManageWire.FORCE_STOP.equals(selected)
                 && TaskerPluginWire.TASKER_PACKAGE.equals(pkg)) {
             feedback.setText("Cannot force-stop Tasker itself."); return;
+        }
+        if (!TaskerPackageManageWire.ENABLE.equals(selected)
+                && (TaskerPluginWire.TASKER_PACKAGE.equals(pkg)
+                        || TaskerPluginWire.LOCALE_PACKAGE.equals(pkg))) {
+            feedback.setText("Cannot disrupt the Tasker/Locale automation host."); return;
         }
         try {
             ApplicationInfo info = getPackageManager().getApplicationInfo(pkg, 0);

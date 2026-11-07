@@ -20,7 +20,8 @@ public final class TaskerPackageManageTest {
     @Test public void fixedOperationOnly() {
         assertTrue(TaskerPackageManageWire.validOperation("enable"));
         assertTrue(TaskerPackageManageWire.validOperation("disable"));
-        assertFalse(TaskerPackageManageWire.validOperation("freeze"));
+        assertTrue(TaskerPackageManageWire.validOperation("freeze"));
+        assertTrue(TaskerPackageManageWire.validOperation("unfreeze"));
         assertTrue(TaskerPackageManageWire.validOperation("force_stop"));
         assertFalse(TaskerPackageManageWire.validOperation("suspend"));
     }
@@ -36,6 +37,11 @@ public final class TaskerPackageManageTest {
         String stop = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "force_stop");
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "enable", stop));
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "force_stop", enabled));
+        String freeze = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "freeze");
+        String unfreeze = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "unfreeze");
+        assertFalse(TaskerPackageManageAccess.valid(app, PKG, "unfreeze", freeze));
+        assertFalse(TaskerPackageManageAccess.valid(app, PKG, "freeze", unfreeze));
+        assertFalse(TaskerPackageManageAccess.valid(app, PKG, "enable", freeze));
         assertFalse(TaskerPackageManageAccess.valid(app, "com.example.other", "enable", enabled));
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "enable",
                 (enabled.startsWith("0") ? "1" : "0") + enabled.substring(1)));
@@ -71,6 +77,13 @@ public final class TaskerPackageManageTest {
     @Test public void forceStopCannotTargetTaskerHost() {
         Context app = RuntimeEnvironment.getApplication();
         Bundle result = TaskerPackageManageBackend.execute(app, TaskerPluginWire.TASKER_PACKAGE, "force_stop");
+        assertEquals("false", result.getString("%am_success"));
+        assertEquals("tasker_target_denied", result.getString("%am_error"));
+    }
+
+    @Test public void freezeCannotTargetTaskerHost() {
+        Context app = RuntimeEnvironment.getApplication();
+        Bundle result = TaskerPackageManageBackend.execute(app, TaskerPluginWire.TASKER_PACKAGE, "freeze");
         assertEquals("false", result.getString("%am_success"));
         assertEquals("tasker_target_denied", result.getString("%am_error"));
     }
