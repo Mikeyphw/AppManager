@@ -171,26 +171,6 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme"
         tools:ignore="UnusedAttribute">
-        <!-- AMT-04: additional Tasker editors use the existing single
-             TaskerActionReceiver FIRE_SETTING endpoint for unambiguous routing. -->
-        <activity
-            android:name=".automation.tasker.TaskerPackageQueryEditActivity"
-            android:exported="true"
-            android:label="@string/tasker_package_query_plugin">
-            <intent-filter>
-                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
-        <activity
-            android:name=".automation.tasker.TaskerPackageManageEditActivity"
-            android:exported="true"
-            android:label="@string/tasker_package_manage_plugin">
-            <intent-filter>
-                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
         <!-- AMT-02: native Tasker/Locale plugin. Editors verify the OS-supplied
              calling package; receivers validate the auto-generated capability. -->
         <activity
@@ -1708,6 +1688,26 @@
         <meta-data
             android:name="android.permission.INTERNET.mode"
             android:value="runtime" />
+        <!-- AMT-04: additional Tasker editors use the existing single
+             TaskerActionReceiver FIRE_SETTING endpoint for unambiguous routing. -->
+        <activity
+            android:name=".automation.tasker.TaskerPackageQueryEditActivity"
+            android:exported="true"
+            android:label="@string/tasker_package_query_plugin">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+        <activity
+            android:name=".automation.tasker.TaskerPackageManageEditActivity"
+            android:exported="true"
+            android:label="@string/tasker_package_manage_plugin">
+            <intent-filter>
+                <action android:name="com.twofortyfouram.locale.intent.action.EDIT_SETTING" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
     </application>
 
 </manifest>
