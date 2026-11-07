@@ -232,7 +232,7 @@ jobs:
           profile: pixel_6
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
-            set -euo pipefail
+            bash -e -o pipefail <<'AMT03_EMULATOR_BASH'
             : "${JAVA_HOME:?}"
             python3 -m devtool.android_instrumentation "$PWD" --policy required               --device-serial emulator-5554 --runner androidx.test.runner.AndroidJUnitRunner               --class io.github.muntashirakon.AppManager.automation.tasker.TaskerJournalInstrumentedTest               --report "$RUNNER_TEMP/amt03-instrumentation.json"               2>&1 | tee "$RUNNER_TEMP/amt03-instrumentation.log"
             python3 - <<'PYCHECK'
@@ -245,6 +245,7 @@ jobs:
             assert int(r.get('failed',0)) == 0, r
             print('AMT03_DEVICE_INSTRUMENTATION_PASS')
             PYCHECK
+            AMT03_EMULATOR_BASH
       - name: Upload instrumentation receipt and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
