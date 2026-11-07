@@ -7,6 +7,7 @@ import android.content.pm.PackageInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.UserHandleHidden;
 
 import org.json.JSONException;
 import org.json.JSONObject;
@@ -35,6 +36,8 @@ public final class TaskerPackageQuery {
         vars.putString("%am_backup_count", "");
         vars.putString("%am_backup_latest_ms", "");
         vars.putString("%am_backups_json", "{}");
+        // Clear receipts on every invocation, including negative/error package queries.
+        vars.putAll(TaskerApkBackupJournal.empty());
         try {
             JSONObject json = new JSONObject();
             json.put("success", success);
@@ -99,6 +102,7 @@ public final class TaskerPackageQuery {
                     Boolean.toString(enabled), Boolean.toString((ai.flags & ApplicationInfo.FLAG_SYSTEM) != 0), "");
             // Optional inventory failure never falsifies the original package lookup.
             vars.putAll(TaskerBackupInventory.query(pkg));
+            vars.putAll(TaskerApkBackupJournal.query(context, pkg, UserHandleHidden.myUserId()));
             return vars;
         } catch (PackageManager.NameNotFoundException missing) {
             return result(pkg, true, false, "", "", "", "", "", "", "");

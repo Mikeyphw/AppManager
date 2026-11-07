@@ -5,6 +5,7 @@ package io.github.muntashirakon.AppManager.batchops;
 import static io.github.muntashirakon.AppManager.history.ops.OpHistoryManager.HISTORY_TYPE_BATCH_OPS;
 
 import android.app.Activity;
+import io.github.muntashirakon.AppManager.automation.tasker.TaskerApkBackupJournal;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
@@ -191,6 +192,7 @@ public class BatchOpsService extends ForegroundService {
     }
 
     private void sendStarted(@NonNull BatchQueueItem queueItem) {
+        TaskerApkBackupJournal.serviceStarted(this, queueItem);
         Intent broadcastIntent = new Intent(ACTION_BATCH_OPS_STARTED);
         broadcastIntent.setPackage(getPackageName());
         broadcastIntent.putExtra(EXTRA_OP, queueItem.getOp());
@@ -199,6 +201,9 @@ public class BatchOpsService extends ForegroundService {
     }
 
     private void sendResults(int result, @Nullable BatchQueueItem queueItem, @Nullable BatchOpsManager.Result opResult) {
+        // Direct in-process callback; never trust an externally forged broadcast.
+        TaskerApkBackupJournal.serviceFinished(this, queueItem,
+                result == Activity.RESULT_OK && opResult != null && opResult.isSuccessful());
         Intent broadcastIntent = new Intent(ACTION_BATCH_OPS_COMPLETED);
         broadcastIntent.setPackage(getPackageName());
         broadcastIntent.putExtra(EXTRA_OP, queueItem != null ? queueItem.getOp() : BatchOpsManager.OP_NONE);

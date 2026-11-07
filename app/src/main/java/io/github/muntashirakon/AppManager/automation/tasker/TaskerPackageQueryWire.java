@@ -80,7 +80,12 @@ public final class TaskerPackageQueryWire {
                 "%am_backup_status\nBackup inventory availability",
                 "%am_backup_count\nBackups for the current Android user",
                 "%am_backup_latest_ms\nLatest backup timestamp (milliseconds)",
-                "%am_backups_json\nBounded backup metadata only (no file paths)"
+                "%am_backups_json\nBounded backup metadata only (no file paths)",
+                "%am_backup_request_name\nLatest Tasker APK backup request name",
+                "%am_backup_request_status\nQueued, running, succeeded, failed, unverified or unknown",
+                "%am_backup_request_error\nBackup request failure/uncertainty code",
+                "%am_backup_request_verified\nTrue only after native completion plus matching backup metadata",
+                "%am_backup_request_updated_ms\nReceipt updated time (milliseconds)"
         });
         return out;
     }

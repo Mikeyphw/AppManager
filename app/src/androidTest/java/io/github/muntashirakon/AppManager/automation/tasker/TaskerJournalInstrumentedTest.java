@@ -166,6 +166,59 @@ public class TaskerJournalInstrumentedTest {
         assertEquals("tasker_target_denied", vars.getString("%am_error"));
     }
 
+    @Test public void testApkReceiptPersistsAcrossObjectReopenOnDevice() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05c-receipt-"+id()+".json");
+        String request = "Tasker-" + java.util.UUID.randomUUID();
+        String pkg = "com.example.amt05c_device";
+        try {
+            TaskerApkBackupJournal ledger = new TaskerApkBackupJournal(store);
+            ledger.enqueue(pkg, 0, request);
+            ledger.started(pkg, 0, request);
+            assertEquals("running", new TaskerApkBackupJournal(store).latest(pkg, 0)
+                    .getString("%am_backup_request_status"));
+            ledger.finished(pkg, 0, request, "succeeded", "");
+            assertEquals("true", new TaskerApkBackupJournal(store).latest(pkg, 0)
+                    .getString("%am_backup_request_verified"));
+            assertEquals("none", ledger.latest(pkg, 10).getString("%am_backup_request_status"));
+        } finally {
+            store.delete(); new java.io.File(store+".bak").delete();
+            new java.io.File(store+".new").delete();
+        }
+    }
+
+    @Test public void testApkReceiptCorruptionFailsClosedOnDevice() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05c-corrupt-"+id()+".json");
+        try {
+            try (java.io.FileOutputStream stream = new java.io.FileOutputStream(store)) {
+                stream.write("corrupt".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            try {
+                new TaskerApkBackupJournal(store).enqueue("com.example.amt05c_device", 0,
+                        "Tasker-" + java.util.UUID.randomUUID());
+                fail("corrupt receipt must never be replaced");
+            } catch (java.io.IOException expected) { /* fail closed */ }
+        } finally { store.delete(); new java.io.File(store+".bak").delete(); }
+    }
+
+    @Test public void testApkReceiptCannotReclassifyFailureAsSuccessOnDevice() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt05c-terminal-"+id()+".json");
+        String request = "Tasker-" + java.util.UUID.randomUUID();
+        String pkg = "com.example.amt05c_device";
+        try {
+            TaskerApkBackupJournal ledger = new TaskerApkBackupJournal(store);
+            ledger.enqueue(pkg, 0, request);
+            ledger.finished(pkg, 0, request, "failed", "native_backup_failed");
+            ledger.finished(pkg, 0, request, "succeeded", "");
+            assertEquals("failed", new TaskerApkBackupJournal(store).latest(pkg, 0)
+                    .getString("%am_backup_request_status"));
+            assertEquals("false", ledger.latest(pkg, 0)
+                    .getString("%am_backup_request_verified"));
+        } finally { store.delete(); new java.io.File(store+".bak").delete(); }
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");

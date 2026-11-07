@@ -9,6 +9,7 @@ import androidx.core.content.ContextCompat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.UUID;
+import java.io.IOException;
 
 import io.github.muntashirakon.AppManager.backup.BackupFlags;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsManager;
@@ -38,15 +39,28 @@ final class TaskerApkBackupDispatcher {
 
     static Bundle dispatch(Context context, String pkg, int user) {
         String name = REQUEST_PREFIX + UUID.randomUUID();
+        // The receipt MUST be persisted before any possible service side effect.
+        TaskerApkBackupJournal receipts = new TaskerApkBackupJournal(context);
+        try {
+            receipts.enqueue(pkg, user, name);
+        } catch (IOException | RuntimeException cannotRecord) {
+            return TaskerPackageManageBackend.result(pkg, TaskerPackageManageWire.BACKUP_APK,
+                    false, "", "", "backup_receipt_unavailable");
+        }
         try {
             BatchQueueItem queue = buildQueue(pkg, user, name);
             ContextCompat.startForegroundService(context,
                     BatchOpsService.getServiceIntent(context, queue));
         } catch (RuntimeException rejected) {
-            // Android background-start restrictions and service errors fail closed.
-            // Never claim a backup completed or silently bypass the restriction.
-            return TaskerPackageManageBackend.result(pkg, TaskerPackageManageWire.BACKUP_APK,
+            // A thrown start call cannot prove the request never reached the service.
+            try { receipts.dispatchUnknown(pkg, user, name); }
+            catch (IOException ignored) { /* remain pending rather than claim failure */ }
+            Bundle uncertain = TaskerPackageManageBackend.result(pkg,
+                    TaskerPackageManageWire.BACKUP_APK,
                     false, "", "", "backup_dispatch_rejected");
+            uncertain.putString("%am_status", "unknown");
+            uncertain.putString("%am_backup_name", name);
+            return uncertain;
         }
         Bundle queued = TaskerPackageManageBackend.result(pkg, TaskerPackageManageWire.BACKUP_APK,
                 true, "", "", "");
