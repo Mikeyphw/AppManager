@@ -21,21 +21,24 @@ public final class TaskerPackageManageBackend {
 
     private TaskerPackageManageBackend() { }
 
-    private static Bundle result(String pkg, String operation, boolean success,
+    static Bundle result(String pkg, String operation, boolean success,
                                  String previous, String current, String error) {
         Bundle vars = new Bundle();
         vars.putString("%am_success", Boolean.toString(success));
         vars.putString("%am_status", success
-                ? (TaskerPackageManageWire.FORCE_STOP.equals(operation) ? "dispatched" : "success")
+                ? (TaskerPackageManageWire.BACKUP_APK.equals(operation) ? "queued" :
+                    TaskerPackageManageWire.FORCE_STOP.equals(operation) ? "dispatched" : "success")
                 : "failed");
         vars.putString("%am_verified", Boolean.toString(success
-                && !TaskerPackageManageWire.FORCE_STOP.equals(operation)));
+                && !TaskerPackageManageWire.FORCE_STOP.equals(operation)
+                && !TaskerPackageManageWire.BACKUP_APK.equals(operation)));
         vars.putString("%am_error", error);
         vars.putString("%am_package", pkg == null ? "" : pkg);
         vars.putString("%am_operation", operation == null ? "" : operation);
         vars.putString("%am_previous_state", previous);
         vars.putString("%am_new_state", current);
         vars.putString("%am_restore_recorded", "");
+        vars.putString("%am_backup_name", "");
         return vars;
     }
 
@@ -132,6 +135,10 @@ public final class TaskerPackageManageBackend {
                 ApplicationInfo application = ctx.getPackageManager().getApplicationInfo(pkg, 0);
                 if ((application.flags & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0)
                     return result(pkg, operation, false, "", "", "system_package_denied");
+                // Queue a single APK-only backup via App Manager's existing service.
+                // Never perform slow backup I/O in Tasker's broadcast receiver.
+                if (TaskerPackageManageWire.BACKUP_APK.equals(operation))
+                    return TaskerApkBackupDispatcher.dispatch(ctx, pkg, user);
                 if (TaskerPackageManageWire.FORCE_STOP.equals(operation)) {
                     // The existing App Manager backend must have this privilege already.
                     // Android exposes no reliable readback to prove a process was killed;

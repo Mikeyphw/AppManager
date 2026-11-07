@@ -1,0 +1,59 @@
+// SPDX-License-Identifier: GPL-3.0-or-later
+package io.github.muntashirakon.AppManager.automation.tasker;
+
+import android.content.Context;
+import android.os.Bundle;
+
+import androidx.core.content.ContextCompat;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.UUID;
+
+import io.github.muntashirakon.AppManager.backup.BackupFlags;
+import io.github.muntashirakon.AppManager.batchops.BatchOpsManager;
+import io.github.muntashirakon.AppManager.batchops.BatchOpsService;
+import io.github.muntashirakon.AppManager.batchops.BatchQueueItem;
+import io.github.muntashirakon.AppManager.batchops.struct.BatchBackupOptions;
+
+/** APK-only, non-overwriting backup enqueue through App Manager's existing foreground service.
+ * This class is NOT an exported Android component, and never performs backup I/O directly.
+ */
+final class TaskerApkBackupDispatcher {
+    private static final String REQUEST_PREFIX = "Tasker-";
+
+    private TaskerApkBackupDispatcher() { }
+
+    static BatchQueueItem buildQueue(String pkg, int user, String name) {
+        if (!TaskerPackageQueryWire.validPackage(pkg) || user < 0
+                || name == null || !name.matches("Tasker-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}")) {
+            throw new IllegalArgumentException("invalid fixed APK backup request");
+        }
+        ArrayList<String> packages = new ArrayList<>(Collections.singletonList(pkg));
+        ArrayList<Integer> users = new ArrayList<>(Collections.singletonList(user));
+        BatchBackupOptions options = new BatchBackupOptions(BackupFlags.BACKUP_APK_FILES | BackupFlags.BACKUP_MULTIPLE,
+                new String[] {name}, null);
+        return BatchQueueItem.getBatchOpQueue(BatchOpsManager.OP_BACKUP, packages, users, options);
+    }
+
+    static Bundle dispatch(Context context, String pkg, int user) {
+        String name = REQUEST_PREFIX + UUID.randomUUID();
+        try {
+            BatchQueueItem queue = buildQueue(pkg, user, name);
+            ContextCompat.startForegroundService(context,
+                    BatchOpsService.getServiceIntent(context, queue));
+        } catch (RuntimeException rejected) {
+            // Android background-start restrictions and service errors fail closed.
+            // Never claim a backup completed or silently bypass the restriction.
+            return TaskerPackageManageBackend.result(pkg, TaskerPackageManageWire.BACKUP_APK,
+                    false, "", "", "backup_dispatch_rejected");
+        }
+        Bundle queued = TaskerPackageManageBackend.result(pkg, TaskerPackageManageWire.BACKUP_APK,
+                true, "", "", "");
+        queued.putString("%am_backup_name", name);
+        // A successful service-start request is only an accepted request, not completion.
+        queued.putString("%am_status", "queued");
+        queued.putString("%am_verified", "false");
+        return queued;
+    }
+}

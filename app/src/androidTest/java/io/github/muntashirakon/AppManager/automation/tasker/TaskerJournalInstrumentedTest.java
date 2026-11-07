@@ -149,6 +149,23 @@ public class TaskerJournalInstrumentedTest {
         } finally { store.delete(); new java.io.File(store+".bak").delete(); }
     }
 
+    @Test public void testApkBackupOwnPackageNeverStartsBatchService() {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.os.Bundle vars = TaskerPackageManageBackend.execute(ctx,
+                ctx.getPackageName(), "backup_apk");
+        assertEquals("false", vars.getString("%am_success"));
+        assertEquals("self_target_denied", vars.getString("%am_error"));
+        assertEquals("", vars.getString("%am_backup_name"));
+    }
+
+    @Test public void testApkBackupHostTargetNeverStartsBatchService() {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.os.Bundle vars = TaskerPackageManageBackend.execute(ctx,
+                TaskerPluginWire.TASKER_PACKAGE, "backup_apk");
+        assertEquals("false", vars.getString("%am_success"));
+        assertEquals("tasker_target_denied", vars.getString("%am_error"));
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");

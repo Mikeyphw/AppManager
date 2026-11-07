@@ -16,12 +16,14 @@ public final class TaskerPackageManageWire {
     public static final String FORCE_STOP = "force_stop";
     public static final String FREEZE = "freeze";
     public static final String UNFREEZE = "unfreeze";
+    public static final String BACKUP_APK = "backup_apk";
 
     private TaskerPackageManageWire() { }
 
     public static boolean validOperation(String operation) {
         return ENABLE.equals(operation) || DISABLE.equals(operation) || FORCE_STOP.equals(operation)
-                || FREEZE.equals(operation) || UNFREEZE.equals(operation);
+                || FREEZE.equals(operation) || UNFREEZE.equals(operation)
+                || BACKUP_APK.equals(operation);
     }
 
     public static Bundle configuration(String pkg, String operation, String proof) {
@@ -65,7 +67,8 @@ public final class TaskerPackageManageWire {
                 "%am_operation\nSelected operation", "%am_previous_state\nPrevious enabled setting",
                 "%am_new_state\nCurrent enabled setting",
                 "%am_verified\nWhether the requested effect was read back",
-                "%am_restore_recorded\nSaved prior state (true, false or unknown)"
+                "%am_restore_recorded\nSaved prior state (true, false or unknown)",
+                "%am_backup_name\nUnique backup name; completion not confirmed"
         });
         return out;
     }

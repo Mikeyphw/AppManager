@@ -43,7 +43,7 @@ public final class TaskerPackageManageEditActivity extends Activity {
         title.setTextSize(22);
         root.addView(title);
         TextView instruction = new TextView(this);
-        instruction.setText("Fixed user app only. Freeze saves its exact prior enabled state; unfreeze restores only an owned snapshot. Force-stop cannot be undone.");
+        instruction.setText("Fixed user app only. Freeze preserves prior state; unfreeze restores owned snapshots. Force-stop cannot be undone.");
         root.addView(instruction);
         packageId = new EditText(this);
         packageId.setSingleLine(true);
@@ -53,16 +53,20 @@ public final class TaskerPackageManageEditActivity extends Activity {
         operation = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
                 new String[] {"Enable application", "Disable application", "Force-stop application (irreversible)",
-                        "Freeze (remember original state)", "Unfreeze (restore saved state)"});
+                        "Freeze (remember original state)", "Unfreeze (restore saved state)",
+                        "Backup APK (new named backup; does not overwrite)"});
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         operation.setAdapter(adapter);
-        operation.setSelection(TaskerPackageManageWire.UNFREEZE.equals(savedOperation) ? 4 :
+        operation.setSelection(TaskerPackageManageWire.BACKUP_APK.equals(savedOperation) ? 5 :
+                TaskerPackageManageWire.UNFREEZE.equals(savedOperation) ? 4 :
                 TaskerPackageManageWire.FREEZE.equals(savedOperation) ? 3 :
                 TaskerPackageManageWire.FORCE_STOP.equals(savedOperation) ? 2 :
                 TaskerPackageManageWire.DISABLE.equals(savedOperation) ? 1 : 0);
         root.addView(operation);
         feedback = new TextView(this);
-        feedback.setText("This task can change package state using App Manager's existing backend. No permission is added or elevated.");
+        feedback.setText("This task uses App Manager's existing backend. " +
+                "Each request may use storage; completion is not confirmed by Tasker. " +
+                "No permission is added or elevated.");
         root.addView(feedback);
         LinearLayout buttons = new LinearLayout(this);
         Button cancel = new Button(this);
@@ -79,7 +83,8 @@ public final class TaskerPackageManageEditActivity extends Activity {
 
     private void save() {
         String pkg = packageId.getText().toString().trim();
-        String selected = operation.getSelectedItemPosition() == 4
+        String selected = operation.getSelectedItemPosition() == 5
+                ? TaskerPackageManageWire.BACKUP_APK : operation.getSelectedItemPosition() == 4
                 ? TaskerPackageManageWire.UNFREEZE : operation.getSelectedItemPosition() == 3
                 ? TaskerPackageManageWire.FREEZE : operation.getSelectedItemPosition() == 2
                 ? TaskerPackageManageWire.FORCE_STOP : operation.getSelectedItemPosition() == 1

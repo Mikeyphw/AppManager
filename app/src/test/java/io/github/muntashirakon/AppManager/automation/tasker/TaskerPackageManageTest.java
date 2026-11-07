@@ -23,6 +23,7 @@ public final class TaskerPackageManageTest {
         assertTrue(TaskerPackageManageWire.validOperation("freeze"));
         assertTrue(TaskerPackageManageWire.validOperation("unfreeze"));
         assertTrue(TaskerPackageManageWire.validOperation("force_stop"));
+        assertTrue(TaskerPackageManageWire.validOperation("backup_apk"));
         assertFalse(TaskerPackageManageWire.validOperation("suspend"));
     }
 
@@ -37,6 +38,9 @@ public final class TaskerPackageManageTest {
         String stop = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "force_stop");
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "enable", stop));
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "force_stop", enabled));
+        String backup = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "backup_apk");
+        assertFalse(TaskerPackageManageAccess.valid(app, PKG, "enable", backup));
+        assertFalse(TaskerPackageManageAccess.valid(app, PKG, "force_stop", backup));
         String freeze = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "freeze");
         String unfreeze = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "unfreeze");
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "unfreeze", freeze));
