@@ -223,6 +223,23 @@ jobs:
           git -C "$RUNNER_TEMP/devtool-source" checkout --detach bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
           test "$(git -C "$RUNNER_TEMP/devtool-source" rev-parse HEAD)" = bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
           python3 -m pip install "$RUNNER_TEMP/devtool-source"
+      - name: Enable KVM acceleration for AMT-03 instrumentation
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ ! -c /dev/kvm ]]; then
+            echo '::error::No /dev/kvm device on this hosted runner; refusing unaccelerated x86_64 emulator.' >&2
+            exit 1
+          fi
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules > /dev/null
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          ls -l /dev/kvm
+          if [[ ! -r /dev/kvm || ! -w /dev/kvm ]]; then
+            echo '::error::KVM device is still inaccessible; refusing software-emulated Android boot.' >&2
+            exit 1
+          fi
+          echo AMT03_HF03_KVM_READY
       - name: Run journal device instrumentation (no real profiles modified)
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -230,6 +247,8 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          disable-linux-hw-accel: false
+          emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           script: |
             bash -e -o pipefail <<'AMT03_EMULATOR_BASH'
