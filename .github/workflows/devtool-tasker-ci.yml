@@ -6,9 +6,9 @@ name: Devtool Tasker integration / hosted Android
       mode:
         description: 'Hosted Gradle task group'
         required: true
-        default: full
+        default: source
         type: choice
-        options: [build, test, lint, full]
+        options: [source, build, test, lint, instrumentation, full]
   push:
     branches: [feature/tasker-automation]
     paths:
@@ -48,6 +48,7 @@ jobs:
           python3 scripts/devtool/check_amt03_contract.py --check
           python3 scripts/devtool/check_amt04_contract.py --check
           python3 scripts/devtool/check_amt04b_contract.py --check
+          python3 scripts/devtool/check_amt04b2_contract.py --check
           python3 -m unittest discover -s scripts/devtool -p 'test_*.py' -v
           sh -n devtoolw
       - name: Verify upstream merge compatibility without changing the tree
@@ -78,7 +79,7 @@ jobs:
   hosted-android:
     name: Android Gradle through Devtool (GitHub-hosted only)
     needs: [source-contract]
-    if: github.event_name == 'workflow_dispatch' || github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'source' && inputs.mode != 'instrumentation')
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -113,7 +114,7 @@ jobs:
       - name: Devtool Android action / workflow execution
         shell: bash
         env:
-          MODE: ${{ inputs.mode || 'full' }}
+          MODE: ${{ github.event_name == 'pull_request' && 'full' || inputs.mode || 'source' }}
         run: |
           set -euo pipefail
           : "${JAVA_HOME:?GitHub setup-java must expose JAVA_HOME}"
@@ -198,7 +199,7 @@ jobs:
   device-instrumentation:
     name: AMT-03 Android instrumentation via Devtool emulator
     needs: [source-contract]
-    if: github.event_name == 'workflow_dispatch' && inputs.mode == 'full'
+    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'full' || inputs.mode == 'instrumentation')
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:

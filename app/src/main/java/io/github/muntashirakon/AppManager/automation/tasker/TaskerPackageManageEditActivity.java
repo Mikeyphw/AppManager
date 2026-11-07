@@ -43,7 +43,7 @@ public final class TaskerPackageManageEditActivity extends Activity {
         title.setTextSize(22);
         root.addView(title);
         TextView instruction = new TextView(this);
-        instruction.setText("Fixed package only. System apps, App Manager itself and Tasker variables are excluded in this first release.");
+        instruction.setText("Fixed package only. No system apps or variables; force-stop cannot be undone and is not a verified process-state report.");
         root.addView(instruction);
         packageId = new EditText(this);
         packageId.setSingleLine(true);
@@ -52,10 +52,11 @@ public final class TaskerPackageManageEditActivity extends Activity {
         root.addView(packageId);
         operation = new Spinner(this);
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
-                new String[] {"Enable application", "Disable application"});
+                new String[] {"Enable application", "Disable application", "Force-stop application (irreversible)"});
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         operation.setAdapter(adapter);
-        operation.setSelection(TaskerPackageManageWire.DISABLE.equals(savedOperation) ? 1 : 0);
+        operation.setSelection(TaskerPackageManageWire.FORCE_STOP.equals(savedOperation) ? 2 :
+                TaskerPackageManageWire.DISABLE.equals(savedOperation) ? 1 : 0);
         root.addView(operation);
         feedback = new TextView(this);
         feedback.setText("This task can change package state using App Manager's existing backend. No permission is added or elevated.");
@@ -75,7 +76,8 @@ public final class TaskerPackageManageEditActivity extends Activity {
 
     private void save() {
         String pkg = packageId.getText().toString().trim();
-        String selected = operation.getSelectedItemPosition() == 1
+        String selected = operation.getSelectedItemPosition() == 2
+                ? TaskerPackageManageWire.FORCE_STOP : operation.getSelectedItemPosition() == 1
                 ? TaskerPackageManageWire.DISABLE : TaskerPackageManageWire.ENABLE;
         if (!TaskerPackageQueryWire.validPackage(pkg)) {
             feedback.setText("Enter one literal package identifier. Variables and wildcards are unsupported.");
@@ -83,6 +85,10 @@ public final class TaskerPackageManageEditActivity extends Activity {
         }
         if (pkg.equals(getPackageName())) {
             feedback.setText("Cannot modify App Manager itself."); return;
+        }
+        if (TaskerPackageManageWire.FORCE_STOP.equals(selected)
+                && TaskerPluginWire.TASKER_PACKAGE.equals(pkg)) {
+            feedback.setText("Cannot force-stop Tasker itself."); return;
         }
         try {
             ApplicationInfo info = getPackageManager().getApplicationInfo(pkg, 0);

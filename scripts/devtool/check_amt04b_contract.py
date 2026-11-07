@@ -32,7 +32,9 @@ def inspect(root=ROOT):
             'PackageManagerCompat.setApplicationEnabledSetting(',
             'PackageManagerCompat.getApplicationEnabledSetting(',
             'state_unverified', 'self_target_denied', 'system_package_denied', 'backend_permission_required',
-            'FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP', 'MUTATION_LOCK'],
+            'FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP', 'MUTATION_LOCK',
+            'ManifestCompat.permission.FORCE_STOP_PACKAGES', 'tasker_target_denied',
+            'PackageManagerCompat.forceStopPackage(', 'dispatched', '%am_verified'],
         'TaskerPackageManageEditActivity.java':['trustedEditor(getCallingPackage())',
             'forTrustedEditor(this, pkg, selected)', 'TaskerPackageManageWire.configuration(',
             'System apps cannot be modified'],
@@ -53,7 +55,7 @@ def inspect(root=ROOT):
     for file, markers in guards.items():
         for marker in markers:
             if marker not in d[file]: errors.append(file+': missing '+marker)
-    for forbidden in ['forceStopPackage(', 'FreezeUtils.freeze(', 'Runtime.getRuntime()',
+    for forbidden in ['FreezeUtils.freeze(', 'Runtime.getRuntime()',
                       'ProcessBuilder(', ' su ', 'startForegroundService(']:
         if forbidden in d['TaskerPackageManageReceiver.java'] or forbidden in d['TaskerPackageManageBackend.java']:
             errors.append('forbidden privileged operation: '+forbidden)

@@ -60,7 +60,9 @@ class AMT03KvmContract(unittest.TestCase):
     def test_source_check_stays_free_of_local_gradle(self):
         src = WF.read_text(encoding='utf-8')
         self.assertIn('python3 scripts/devtool/check_amt03_contract.py --check', src)
-        self.assertIn("if: github.event_name == 'workflow_dispatch' && inputs.mode == 'full'", src)
+        device_job = job_section()
+        self.assertIn("if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'full' || inputs.mode == 'instrumentation')", device_job)
+        self.assertIn("if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'source' && inputs.mode != 'instrumentation')", src)
         self.assertIn('devtool --repo "$PWD" --java-home "$JAVA_HOME" invoke --target app ci', src)
         self.assertNotIn('chmod 777 /dev/kvm', src)
 

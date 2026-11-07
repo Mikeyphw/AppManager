@@ -21,7 +21,8 @@ public final class TaskerPackageManageTest {
         assertTrue(TaskerPackageManageWire.validOperation("enable"));
         assertTrue(TaskerPackageManageWire.validOperation("disable"));
         assertFalse(TaskerPackageManageWire.validOperation("freeze"));
-        assertFalse(TaskerPackageManageWire.validOperation("force_stop"));
+        assertTrue(TaskerPackageManageWire.validOperation("force_stop"));
+        assertFalse(TaskerPackageManageWire.validOperation("suspend"));
     }
 
     @Test public void bindingIsExactAndTamperEvident() throws Exception {
@@ -32,6 +33,9 @@ public final class TaskerPackageManageTest {
         assertNotEquals(enabled, disabled);
         assertTrue(TaskerPackageManageAccess.valid(app, PKG, "enable", enabled));
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "disable", enabled));
+        String stop = TaskerPackageManageAccess.forTrustedEditor(app, PKG, "force_stop");
+        assertFalse(TaskerPackageManageAccess.valid(app, PKG, "enable", stop));
+        assertFalse(TaskerPackageManageAccess.valid(app, PKG, "force_stop", enabled));
         assertFalse(TaskerPackageManageAccess.valid(app, "com.example.other", "enable", enabled));
         assertFalse(TaskerPackageManageAccess.valid(app, PKG, "enable",
                 (enabled.startsWith("0") ? "1" : "0") + enabled.substring(1)));
@@ -64,9 +68,16 @@ public final class TaskerPackageManageTest {
         assertEquals("self_target_denied", result.getString("%am_error"));
     }
 
+    @Test public void forceStopCannotTargetTaskerHost() {
+        Context app = RuntimeEnvironment.getApplication();
+        Bundle result = TaskerPackageManageBackend.execute(app, TaskerPluginWire.TASKER_PACKAGE, "force_stop");
+        assertEquals("false", result.getString("%am_success"));
+        assertEquals("tasker_target_denied", result.getString("%am_error"));
+    }
+
     @Test public void invalidOperationFailsWithoutChangingPackage() {
         Context app = RuntimeEnvironment.getApplication();
-        Bundle result = TaskerPackageManageBackend.execute(app, PKG, "freeze");
+        Bundle result = TaskerPackageManageBackend.execute(app, PKG, "suspend");
         assertEquals("false", result.getString("%am_success"));
         assertEquals("invalid_operation", result.getString("%am_error"));
     }

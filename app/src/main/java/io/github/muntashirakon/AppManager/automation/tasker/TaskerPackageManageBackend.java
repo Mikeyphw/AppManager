@@ -8,6 +8,7 @@ import android.content.pm.PackageManager;
 import android.os.Bundle;
 import android.os.UserHandleHidden;
 
+import io.github.muntashirakon.AppManager.compat.ManifestCompat;
 import io.github.muntashirakon.AppManager.compat.PackageManagerCompat;
 import io.github.muntashirakon.AppManager.self.SelfPermissions;
 
@@ -21,7 +22,11 @@ public final class TaskerPackageManageBackend {
                                  String previous, String current, String error) {
         Bundle vars = new Bundle();
         vars.putString("%am_success", Boolean.toString(success));
-        vars.putString("%am_status", success ? "success" : "failed");
+        vars.putString("%am_status", success
+                ? (TaskerPackageManageWire.FORCE_STOP.equals(operation) ? "dispatched" : "success")
+                : "failed");
+        vars.putString("%am_verified", Boolean.toString(success
+                && !TaskerPackageManageWire.FORCE_STOP.equals(operation)));
         vars.putString("%am_error", error);
         vars.putString("%am_package", pkg == null ? "" : pkg);
         vars.putString("%am_operation", operation == null ? "" : operation);
@@ -36,6 +41,9 @@ public final class TaskerPackageManageBackend {
         if (!TaskerPackageQueryWire.validPackage(pkg) || !TaskerPackageManageWire.validOperation(operation))
             return failure("invalid_operation");
         if (pkg.equals(ctx.getPackageName())) return result(pkg, operation, false, "", "", "self_target_denied");
+        if (TaskerPackageManageWire.FORCE_STOP.equals(operation)
+                && TaskerPluginWire.TASKER_PACKAGE.equals(pkg))
+            return result(pkg, operation, false, "", "", "tasker_target_denied");
         synchronized (MUTATION_LOCK) {
             final int user = UserHandleHidden.myUserId();
             final int requested = TaskerPackageManageWire.ENABLE.equals(operation)
@@ -45,6 +53,15 @@ public final class TaskerPackageManageBackend {
                 ApplicationInfo application = ctx.getPackageManager().getApplicationInfo(pkg, 0);
                 if ((application.flags & (ApplicationInfo.FLAG_SYSTEM | ApplicationInfo.FLAG_UPDATED_SYSTEM_APP)) != 0)
                     return result(pkg, operation, false, "", "", "system_package_denied");
+                if (TaskerPackageManageWire.FORCE_STOP.equals(operation)) {
+                    // The existing App Manager backend must have this privilege already.
+                    // Android exposes no reliable readback to prove a process was killed;
+                    // report dispatch separately from a confirmed package-state change.
+                    if (!SelfPermissions.checkSelfOrRemotePermission(ManifestCompat.permission.FORCE_STOP_PACKAGES))
+                        return result(pkg, operation, false, "", "", "backend_permission_required");
+                    PackageManagerCompat.forceStopPackage(pkg, user);
+                    return result(pkg, operation, true, "", "", "");
+                }
                 if (!SelfPermissions.checkSelfOrRemotePermission(Manifest.permission.CHANGE_COMPONENT_ENABLED_STATE))
                     return result(pkg, operation, false, "", "", "backend_permission_required");
                 int before = PackageManagerCompat.getApplicationEnabledSetting(pkg, user);

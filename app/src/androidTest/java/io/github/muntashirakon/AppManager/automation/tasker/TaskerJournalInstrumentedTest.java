@@ -60,9 +60,16 @@ public class TaskerJournalInstrumentedTest {
         assertEquals("false", vars.getString("%am_success"));
         assertEquals("self_target_denied", vars.getString("%am_error"));
     }
+    @Test public void testForceStopOwnPackageAlwaysDenied() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.os.Bundle vars = TaskerPackageManageBackend.execute(context, context.getPackageName(), "force_stop");
+        assertEquals("false", vars.getString("%am_success"));
+        assertEquals("self_target_denied", vars.getString("%am_error"));
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "force_stop");
+        android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");
         assertEquals("false", vars.getString("%am_success"));
         assertEquals("invalid_operation", vars.getString("%am_error"));
     }
