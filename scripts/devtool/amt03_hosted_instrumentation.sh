@@ -18,7 +18,7 @@ restore_original() {
     rm -f -- "$original"
 }
 trap restore_original EXIT
-python3 -B scripts/devtool/amt03_hosted_config.py .devtool.toml
+python3 -B scripts/devtool/amt03_hosted_config.py .devtool.toml --java-home "$JAVA_HOME"
 
 # These are Devtool's structural preconditions, not just sdkmanager directory names.
 for required in \
@@ -32,12 +32,42 @@ for required in \
     [[ -f "$required" ]] || { echo "AMT03_HF04_SDK_NOT_READY: $required" >&2; exit 1; }
 done
 
+# Validate the exact JDK the Devtool Android builder will receive. Do not
+# rely on JAVA_HOME alone: Devtool may select a narrower installed JDK (Java 8)
+# for a project that compiles its sources with Java 8 compatibility.
+python3 -B - "$JAVA_HOME" <<'PYJDK'
+from pathlib import Path
+import re
+import subprocess
+import sys
+home = Path(sys.argv[1])
+java, javac = home / 'bin/java', home / 'bin/javac'
+if not java.is_file() or not javac.is_file():
+    raise SystemExit('AMT03_HF05_REFUSED_JDK: JAVA_HOME lacks bin/java or bin/javac')
+try:
+    result = subprocess.run([str(java), '-version'], text=True,
+                            capture_output=True, check=False, timeout=15)
+except (OSError, subprocess.SubprocessError) as exc:
+    raise SystemExit('AMT03_HF05_REFUSED_JDK: cannot execute java -version') from exc
+output = (result.stdout or '') + '\n' + (result.stderr or '')
+match = re.search(r'version\s+"([0-9]+)(?:\.([0-9]+))?', output)
+major = int(match.group(2) if match.group(1) == '1' else match.group(1)) if match else None
+if result.returncode != 0 or major != 21:
+    raise SystemExit(f'AMT03_HF05_REFUSED_JDK_VERSION: required 21, observed {major}')
+print('AMT03_HF05_JDK21_READY: ' + str(home))
+PYJDK
+
 # Verify that the *target-aware* Devtool Android environment is qualified.
 python3 -B - <<'PY'
 import json
+import os
 from devtool.config import load_project_config
 from devtool.android.environment import resolve_android_environment
 cfg = load_project_config('.', None, target_name='app', variant_name='debug', allow_parent_config=True)
+selected = cfg.runner_options.get('android', {}).get('java_home')
+if selected != os.environ['JAVA_HOME']:
+    raise SystemExit('AMT03_HF05_DEVTOOL_JDK_MISMATCH: ' + str(selected))
+print('AMT03_HF05_DEVTOOL_JDK21_BOUND')
 request, qualification, _resolved = resolve_android_environment(cfg, action='instrumentation', fail_closed=False)
 print('AMT03_HF04_SDK_QUALIFICATION ' + json.dumps({
     'status': qualification.status,
