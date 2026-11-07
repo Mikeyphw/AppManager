@@ -26,12 +26,14 @@ public final class TaskerPackageManageBackend {
         Bundle vars = new Bundle();
         vars.putString("%am_success", Boolean.toString(success));
         vars.putString("%am_status", success
-                ? (TaskerPackageManageWire.BACKUP_APK.equals(operation) ? "queued" :
+                ? ((TaskerPackageManageWire.BACKUP_APK.equals(operation)
+                    || TaskerPackageManageWire.BACKUP_DATA.equals(operation)) ? "queued" :
                     TaskerPackageManageWire.FORCE_STOP.equals(operation) ? "dispatched" : "success")
                 : "failed");
         vars.putString("%am_verified", Boolean.toString(success
                 && !TaskerPackageManageWire.FORCE_STOP.equals(operation)
-                && !TaskerPackageManageWire.BACKUP_APK.equals(operation)));
+                && !TaskerPackageManageWire.BACKUP_APK.equals(operation)
+                && !TaskerPackageManageWire.BACKUP_DATA.equals(operation)));
         vars.putString("%am_error", error);
         vars.putString("%am_package", pkg == null ? "" : pkg);
         vars.putString("%am_operation", operation == null ? "" : operation);
@@ -137,8 +139,15 @@ public final class TaskerPackageManageBackend {
                     return result(pkg, operation, false, "", "", "system_package_denied");
                 // Queue a single APK-only backup via App Manager's existing service.
                 // Never perform slow backup I/O in Tasker's broadcast receiver.
-                if (TaskerPackageManageWire.BACKUP_APK.equals(operation))
-                    return TaskerApkBackupDispatcher.dispatch(ctx, pkg, user);
+if (TaskerPackageManageWire.BACKUP_APK.equals(operation))
+    return TaskerApkBackupDispatcher.dispatch(ctx, pkg, user);
+// An explicitly bound Tasker action may request only the current
+// user's internal data, never cross-user data or bypassed privileges.
+if (TaskerPackageManageWire.BACKUP_DATA.equals(operation)) {
+    if (!SelfPermissions.canWriteToDataData())
+        return result(pkg, operation, false, "", "", "backend_data_permission_required");
+    return TaskerDataBackupDispatcher.dispatch(ctx, pkg, user);
+}
                 if (TaskerPackageManageWire.FORCE_STOP.equals(operation)) {
                     // The existing App Manager backend must have this privilege already.
                     // Android exposes no reliable readback to prove a process was killed;

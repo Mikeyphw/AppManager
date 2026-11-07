@@ -17,13 +17,14 @@ public final class TaskerPackageManageWire {
     public static final String FREEZE = "freeze";
     public static final String UNFREEZE = "unfreeze";
     public static final String BACKUP_APK = "backup_apk";
+    public static final String BACKUP_DATA = "backup_data";
 
     private TaskerPackageManageWire() { }
 
     public static boolean validOperation(String operation) {
         return ENABLE.equals(operation) || DISABLE.equals(operation) || FORCE_STOP.equals(operation)
                 || FREEZE.equals(operation) || UNFREEZE.equals(operation)
-                || BACKUP_APK.equals(operation);
+                || BACKUP_APK.equals(operation) || BACKUP_DATA.equals(operation);
     }
 
     public static Bundle configuration(String pkg, String operation, String proof) {

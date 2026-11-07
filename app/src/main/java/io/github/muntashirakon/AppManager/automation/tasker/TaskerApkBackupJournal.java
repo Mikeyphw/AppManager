@@ -40,6 +40,8 @@ public final class TaskerApkBackupJournal {
     private static final int FLAGS = BackupFlags.BACKUP_APK_FILES | BackupFlags.BACKUP_MULTIPLE;
     // BackupOp.setupMetadataAndCrypto strips the MULTIPLE routing flag before metadata is saved.
     private static final int METADATA_FLAGS = BackupFlags.BACKUP_APK_FILES;
+    private static final int DATA_FLAGS = BackupFlags.BACKUP_APK_FILES | BackupFlags.BACKUP_INT_DATA | BackupFlags.BACKUP_MULTIPLE;
+    private static final int DATA_METADATA_FLAGS = BackupFlags.BACKUP_APK_FILES | BackupFlags.BACKUP_INT_DATA;
     private static final Object IO_LOCK = new Object();
     private final AtomicFile file;
 
@@ -57,6 +59,14 @@ public final class TaskerApkBackupJournal {
         return name != null && name.matches("Tasker-[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}");
     }
 
+    private static boolean validType(String type) {
+        return "apk".equals(type) || "data".equals(type);
+    }
+
+    private static String receiptType(JSONObject record) {
+        return record.optString("type", "apk");
+    }
+
     private static boolean pending(String status) {
         return "queued".equals(status) || "running".equals(status);
     }
@@ -67,7 +77,8 @@ public final class TaskerApkBackupJournal {
     }
 
     private static JSONObject parsed(JSONObject rec) throws JSONException, IOException {
-        if (rec.length() != 7 || !validName(rec.getString("name"))
+        if ((rec.length() != 7 && rec.length() != 8) || !validType(receiptType(rec))
+                || !validName(rec.getString("name"))
                 || !TaskerPackageQueryWire.validPackage(rec.getString("package"))
                 || rec.getInt("user") < 0 || rec.getLong("created_ms") <= 0
                 || rec.getLong("updated_ms") < rec.getLong("created_ms")
@@ -143,7 +154,12 @@ public final class TaskerApkBackupJournal {
 
     /** Saves a request before the foreground-service dispatch; never overrides a prior ID. */
     void enqueue(String pkg, int user, String name) throws IOException {
-        if (!TaskerPackageQueryWire.validPackage(pkg) || user < 0 || !validName(name))
+        enqueue(pkg, user, name, "apk");
+    }
+
+    void enqueue(String pkg, int user, String name, String type) throws IOException {
+        if (!TaskerPackageQueryWire.validPackage(pkg) || user < 0 || !validName(name)
+                || !validType(type))
             throw new IOException("invalid backup request identity");
         synchronized (IO_LOCK) {
             JSONArray records = read();
@@ -188,6 +204,7 @@ public final class TaskerApkBackupJournal {
                 item.put("updated_ms", now);
                 item.put("status", "queued");
                 item.put("error", "");
+                if ("data".equals(type)) item.put("type", type);
                 records.put(item);
                 write(records);
             } catch (JSONException bad) { throw new IOException("receipt serialization failed", bad); }
@@ -196,21 +213,34 @@ public final class TaskerApkBackupJournal {
 
     /** A thrown startForegroundService call doesn't prove that no work started. */
     void dispatchUnknown(String pkg, int user, String name) throws IOException {
-        transition(pkg, user, name, "unknown", "backup_dispatch_uncertain", false);
+        dispatchUnknown(pkg, user, name, "apk");
+    }
+
+    void dispatchUnknown(String pkg, int user, String name, String type) throws IOException {
+        transition(pkg, user, name, type, "unknown", "backup_dispatch_uncertain", false);
     }
 
     void started(String pkg, int user, String name) throws IOException {
-        transition(pkg, user, name, "running", "", false);
+        started(pkg, user, name, "apk");
+    }
+
+    void started(String pkg, int user, String name, String type) throws IOException {
+        transition(pkg, user, name, type, "running", "", false);
     }
 
     void finished(String pkg, int user, String name, String status, String error) throws IOException {
-        if (!"succeeded".equals(status) && !"failed".equals(status)
-                && !"unverified".equals(status)) throw new IOException("invalid terminal state");
-        transition(pkg, user, name, status, error, true);
+        finished(pkg, user, name, "apk", status, error);
     }
 
-    private void transition(String pkg, int user, String name, String state, String error,
+    void finished(String pkg, int user, String name, String type, String status, String error) throws IOException {
+        if (!"succeeded".equals(status) && !"failed".equals(status)
+                && !"unverified".equals(status)) throw new IOException("invalid terminal state");
+        transition(pkg, user, name, type, status, error, true);
+    }
+
+    private void transition(String pkg, int user, String name, String type, String state, String error,
                             boolean terminal) throws IOException {
+        if (!validType(type)) throw new IOException("invalid backup receipt type");
         synchronized (IO_LOCK) {
             JSONArray records = read();
             boolean found = false;
@@ -220,6 +250,7 @@ public final class TaskerApkBackupJournal {
                     if (!name.equals(rec.getString("name"))) continue;
                     if (!pkg.equals(rec.getString("package")) || user != rec.getInt("user"))
                         throw new IOException("mismatched backup callback identity");
+                    if (!type.equals(receiptType(rec))) return;
                     String current = rec.getString("status");
                     // A late callback or duplicate service result cannot rewrite a terminal receipt.
                     if (!pending(current)) return;
@@ -265,6 +296,7 @@ public final class TaskerApkBackupJournal {
                     if (history.length() < HISTORY_LIMIT) {
                         JSONObject item = new JSONObject();
                         item.put("name", rec.getString("name"));
+                        item.put("type", receiptType(rec));
                         item.put("status", observed);
                         item.put("error", "unknown".equals(observed) && pending(rec.getString("status"))
                                 ? "backup_completion_timeout" : rec.getString("error"));
@@ -285,6 +317,7 @@ public final class TaskerApkBackupJournal {
                     observedError = "backup_completion_timeout";
                 }
                 out.putString("%am_backup_request_name", latest.getString("name"));
+                out.putString("%am_backup_request_type", receiptType(latest));
                 out.putString("%am_backup_request_status", status);
                 out.putString("%am_backup_request_error", observedError);
                 out.putString("%am_backup_request_updated_ms", Long.toString(timestamp));
@@ -297,6 +330,7 @@ public final class TaskerApkBackupJournal {
     public static Bundle empty() {
         Bundle out = new Bundle();
         out.putString("%am_backup_request_name", "");
+        out.putString("%am_backup_request_type", "");
         out.putString("%am_backup_request_status", "none");
         out.putString("%am_backup_request_error", "");
         out.putString("%am_backup_request_updated_ms", "");
@@ -326,7 +360,8 @@ public final class TaskerApkBackupJournal {
             Integer user = item.getUsers().get(0);
             if (!TaskerPackageQueryWire.validPackage(pkg) || user == null || user < 0) return null;
             BackupOpOptions options = ((BatchBackupOptions) item.getOptions()).getBackupOpOptions(pkg, user);
-            if (options.flags.getFlags() != FLAGS || options.override || !validName(options.backupName)
+            if ((options.flags.getFlags() != FLAGS && options.flags.getFlags() != DATA_FLAGS)
+                    || options.override || !validName(options.backupName)
                     || !pkg.equals(options.packageName) || options.userId != user) return null;
             return options;
         } catch (RuntimeException bad) { return null; }
@@ -337,7 +372,7 @@ public final class TaskerApkBackupJournal {
         if (request == null) return;
         try {
             new TaskerApkBackupJournal(context).started(request.packageName, request.userId,
-                    request.backupName);
+                    request.backupName, request.flags.getFlags() == DATA_FLAGS ? "data" : "apk");
         } catch (IOException | RuntimeException ignored) {
             // Journal corruption must never interrupt native backup service execution.
         }
@@ -349,6 +384,7 @@ public final class TaskerApkBackupJournal {
         if (request == null) return;
         String state = "failed";
         String error = "native_backup_failed";
+        boolean data = request.flags.getFlags() == DATA_FLAGS;
         if (batchSucceeded) {
             state = "unverified";
             error = "backup_metadata_unverified";
@@ -358,7 +394,8 @@ public final class TaskerApkBackupJournal {
                     if (backup != null && request.packageName.equals(backup.packageName)
                             && request.userId == backup.userId
                             && request.backupName.equals(backup.backupName)
-                            && backup.flags == METADATA_FLAGS) {
+                            && ((data && backup.flags == DATA_METADATA_FLAGS)
+                                || (!data && backup.flags == METADATA_FLAGS))) {
                         state = "succeeded";
                         error = "";
                         break;
@@ -370,7 +407,7 @@ public final class TaskerApkBackupJournal {
         }
         try {
             new TaskerApkBackupJournal(context).finished(request.packageName, request.userId,
-                    request.backupName, state, error);
+                    request.backupName, data ? "data" : "apk", state, error);
         } catch (IOException | RuntimeException ignored) {
             // The persisted record remains pending/unknown; no false terminal success.
         }

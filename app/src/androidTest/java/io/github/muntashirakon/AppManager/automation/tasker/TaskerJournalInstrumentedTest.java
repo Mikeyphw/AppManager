@@ -256,6 +256,40 @@ public class TaskerJournalInstrumentedTest {
         } finally {store.delete();new java.io.File(store+".bak").delete();new java.io.File(store+".new").delete();}
     }
 
+    @Test public void testDataBackupOwnPackageDeniedBeforeService() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.os.Bundle out = TaskerPackageManageBackend.execute(context,
+                context.getPackageName(), "backup_data");
+        assertEquals("self_target_denied", out.getString("%am_error"));
+        assertEquals("false", out.getString("%am_success"));
+    }
+
+    @Test public void testDataBackupTaskerHostDeniedBeforeService() {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        android.os.Bundle out = TaskerPackageManageBackend.execute(context,
+                TaskerPluginWire.TASKER_PACKAGE, "backup_data");
+        assertEquals("tasker_target_denied", out.getString("%am_error"));
+        assertEquals("false", out.getString("%am_success"));
+    }
+
+    @Test public void testDataBackupReceiptPersistsTypeWithoutTouchingApps() throws Exception {
+        Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File file = new java.io.File(context.getCacheDir(), "amt06a-data-"+id()+".json");
+        String request = "Tasker-" + java.util.UUID.randomUUID();
+        try {
+            TaskerApkBackupJournal ledger = new TaskerApkBackupJournal(file);
+            ledger.enqueue("com.example.amt06a", 0, request, "data");
+            ledger.started("com.example.amt06a", 0, request, "data");
+            android.os.Bundle out = new TaskerApkBackupJournal(file).latest("com.example.amt06a", 0);
+            assertEquals("data", out.getString("%am_backup_request_type"));
+            assertEquals("running", out.getString("%am_backup_request_status"));
+            assertEquals("false", out.getString("%am_backup_request_verified"));
+            assertTrue(out.getString("%am_backup_request_history_json").contains("\"type\":\"data\""));
+        } finally {
+            file.delete();new java.io.File(file+".bak").delete();new java.io.File(file+".new").delete();
+        }
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");

@@ -50,7 +50,7 @@ GUARDS = {
               'vars.putAll(TaskerApkBackupJournal.query(context, pkg, UserHandleHidden.myUserId()));',
               'vars.putAll(TaskerBackupInventory.query(pkg));',
               'PackageManager.NameNotFoundException missing'],
-    'wire': ['"%am_backup_request_name\\nLatest Tasker APK backup request name"',
+    'wire': ['"%am_backup_request_name\\nLatest Tasker backup request name"',
              '"%am_backup_request_status\\nQueued, running, succeeded, failed, unverified or unknown"',
              '"%am_backup_request_verified\\nTrue only after native completion plus matching backup metadata"',
              '"%am_backups_json\\nBounded backup metadata only (no file paths)"'],
@@ -92,7 +92,7 @@ def inspect(root=ROOT):
     for illegal in ('Runtime.getRuntime(', 'ProcessBuilder(',
                     'BackupManager(', '.backup(', '.restore(',
                     'OP_RESTORE_BACKUP', 'OP_DELETE_BACKUP',
-                    'BACKUP_INT_DATA', 'BACKUP_EXT_DATA', 'BACKUP_ADB_DATA',
+                    'BACKUP_EXT_DATA', 'BACKUP_ADB_DATA',
                     'BACKUP_NO_SIGNATURE_CHECK', 'getItem().getBackupPath('):
         if illegal in j or illegal in d:
             issues.append('forbidden write escalation: '+illegal)

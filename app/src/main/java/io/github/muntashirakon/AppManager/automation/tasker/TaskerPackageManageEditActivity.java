@@ -54,10 +54,12 @@ public final class TaskerPackageManageEditActivity extends Activity {
         ArrayAdapter<String> adapter = new ArrayAdapter<>(this, android.R.layout.simple_spinner_item,
                 new String[] {"Enable application", "Disable application", "Force-stop application (irreversible)",
                         "Freeze (remember original state)", "Unfreeze (restore saved state)",
-                        "Backup APK (new named backup; does not overwrite)"});
+                        "Backup APK (new named backup; does not overwrite)",
+                        "Backup APK + internal app data (requires privileged access)"});
         adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
         operation.setAdapter(adapter);
-        operation.setSelection(TaskerPackageManageWire.BACKUP_APK.equals(savedOperation) ? 5 :
+        operation.setSelection(TaskerPackageManageWire.BACKUP_DATA.equals(savedOperation) ? 6 :
+                TaskerPackageManageWire.BACKUP_APK.equals(savedOperation) ? 5 :
                 TaskerPackageManageWire.UNFREEZE.equals(savedOperation) ? 4 :
                 TaskerPackageManageWire.FREEZE.equals(savedOperation) ? 3 :
                 TaskerPackageManageWire.FORCE_STOP.equals(savedOperation) ? 2 :
@@ -66,6 +68,7 @@ public final class TaskerPackageManageEditActivity extends Activity {
         feedback = new TextView(this);
         feedback.setText("This task uses App Manager's existing backend. " +
                 "Each request may use storage; completion is not confirmed by Tasker. " +
+                "App-data backups may contain credentials or other sensitive information; check storage encryption settings. " +
                 "No permission is added or elevated.");
         root.addView(feedback);
         LinearLayout buttons = new LinearLayout(this);
@@ -83,7 +86,8 @@ public final class TaskerPackageManageEditActivity extends Activity {
 
     private void save() {
         String pkg = packageId.getText().toString().trim();
-        String selected = operation.getSelectedItemPosition() == 5
+        String selected = operation.getSelectedItemPosition() == 6
+                ? TaskerPackageManageWire.BACKUP_DATA : operation.getSelectedItemPosition() == 5
                 ? TaskerPackageManageWire.BACKUP_APK : operation.getSelectedItemPosition() == 4
                 ? TaskerPackageManageWire.UNFREEZE : operation.getSelectedItemPosition() == 3
                 ? TaskerPackageManageWire.FREEZE : operation.getSelectedItemPosition() == 2
