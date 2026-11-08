@@ -108,6 +108,8 @@ assert int(r.get('passed', 0)) >= 17, ('AMT05C_RECEIPT_DEVICE_COVERAGE_INCOMPLET
 assert int(r.get('passed', 0)) >= 19, ('AMT05D_RECEIPT_RECOVERY_DEVICE_COVERAGE_INCOMPLETE', r)
 assert int(r.get('passed', 0)) >= 22, ('AMT06A_DATA_BACKUP_NEGATIVE_DEVICE_COVERAGE_INCOMPLETE', r)
 assert int(r.get('passed', 0)) >= 26, ('AMT06B_RESTORE_NEGATIVE_DEVICE_COVERAGE_INCOMPLETE', r)
+assert int(r.get('passed', 0)) >= 30, ('AMT06C_RESTORE_JOURNAL_NEGATIVE_DEVICE_COVERAGE_INCOMPLETE', r)
+assert int(r.get('executed', 0)) >= 30, ('AMT06C_DEVICE_EXECUTED_COUNT_INCOMPLETE', r)
 assert int(r.get('failed', 0)) == 0, r
 assert int(r.get('executed', 0)) >= 2, r
 assert int(r.get('returncode', 1)) == 0, r

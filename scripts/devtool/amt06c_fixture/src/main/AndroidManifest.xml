@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Disposable, debuggable empty test app; contains only a synthetic marker created via run-as. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="AMT06C Disposable Restore Fixture"
+        android:hasCode="false" android:allowBackup="true"
+        android:usesCleartextTraffic="false" />
+</manifest>

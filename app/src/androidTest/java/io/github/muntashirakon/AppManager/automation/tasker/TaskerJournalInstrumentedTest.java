@@ -335,6 +335,83 @@ public class TaskerJournalInstrumentedTest {
         assertFalse(TaskerPackageManageWire.isDataRestore("restore_data:latest:123:456"));
     }
 
+    // AMT-06C: isolated synthetic journal tests; no real package-data restore invoked.
+    @Test public void testRestoreSecondPendingRequestRejectedBeforeWorker() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt06c-dup-" + id() + ".json");
+        String pkg = "dev.mikeyphw.amt06c.fixture";
+        String name = "Tasker-" + UUID.randomUUID();
+        String first = "Tasker-Restore-" + UUID.randomUUID();
+        String second = "Tasker-Restore-" + UUID.randomUUID();
+        TaskerDataRestoreGate.Selection selection = new TaskerDataRestoreGate.Selection(
+                pkg, name, "isolated/synthetic", 0, 11001, 12345L, 1L);
+        try {
+            TaskerDataRestoreJournal journal = new TaskerDataRestoreJournal(store);
+            journal.enqueue(selection, first);
+            try {
+                journal.enqueue(selection, second);
+                fail("second outstanding destructive restore must be refused");
+            } catch (java.io.IOException expected) { /* fail closed */ }
+            assertEquals(first, new TaskerDataRestoreJournal(store).latest(pkg, 0)
+                    .getString("%am_restore_request_id"));
+        } finally { store.delete(); new java.io.File(store + ".bak").delete();
+                    new java.io.File(store + ".new").delete(); }
+    }
+
+    @Test public void testRestoreCorruptReceiptRefusesSecondRequest() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt06c-corrupt-" + id() + ".json");
+        String pkg = "dev.mikeyphw.amt06c.fixture";
+        try {
+            try (java.io.FileOutputStream output = new java.io.FileOutputStream(store)) {
+                output.write("damaged-not-json".getBytes(java.nio.charset.StandardCharsets.UTF_8));
+            }
+            TaskerDataRestoreGate.Selection selection = new TaskerDataRestoreGate.Selection(
+                    pkg, "Tasker-" + UUID.randomUUID(), "isolated/synthetic", 0, 11001, 12345L, 1L);
+            try {
+                new TaskerDataRestoreJournal(store).enqueue(selection, "Tasker-Restore-" + UUID.randomUUID());
+                fail("corrupt journal must never be silently replaced before restore");
+            } catch (java.io.IOException expected) { /* preserve damaged receipt for diagnosis */ }
+        } finally { store.delete(); new java.io.File(store + ".bak").delete();
+                    new java.io.File(store + ".new").delete(); }
+    }
+
+    @Test public void testRestoreUnknownNeverReclassifiesAsSuccess() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt06c-unknown-" + id() + ".json");
+        String pkg = "dev.mikeyphw.amt06c.fixture";
+        String request = "Tasker-Restore-" + UUID.randomUUID();
+        TaskerDataRestoreGate.Selection selection = new TaskerDataRestoreGate.Selection(
+                pkg, "Tasker-" + UUID.randomUUID(), "isolated/synthetic", 0, 11001, 12345L, 1L);
+        try {
+            TaskerDataRestoreJournal journal = new TaskerDataRestoreJournal(store);
+            journal.enqueue(selection, request);
+            journal.dispatchUnknown(request);
+            journal.dispatchUnknown(request);
+            android.os.Bundle result = new TaskerDataRestoreJournal(store).latest(pkg, 0);
+            assertEquals("unknown", result.getString("%am_restore_request_status"));
+            assertEquals("false", result.getString("%am_restore_request_verified"));
+        } finally { store.delete(); new java.io.File(store + ".bak").delete();
+                    new java.io.File(store + ".new").delete(); }
+    }
+
+    @Test public void testRestoreForeignUserCannotSeePendingReceipt() throws Exception {
+        Context ctx = InstrumentationRegistry.getInstrumentation().getTargetContext();
+        java.io.File store = new java.io.File(ctx.getCacheDir(), "amt06c-user-" + id() + ".json");
+        String pkg = "dev.mikeyphw.amt06c.fixture";
+        TaskerDataRestoreGate.Selection selection = new TaskerDataRestoreGate.Selection(
+                pkg, "Tasker-" + UUID.randomUUID(), "isolated/synthetic", 0, 11001, 12345L, 1L);
+        try {
+            TaskerDataRestoreJournal journal = new TaskerDataRestoreJournal(store);
+            journal.enqueue(selection, "Tasker-Restore-" + UUID.randomUUID());
+            assertEquals("queued", journal.latest(pkg, 0).getString("%am_restore_request_status"));
+            assertEquals("none", new TaskerDataRestoreJournal(store).latest(pkg, 10)
+                    .getString("%am_restore_request_status"));
+            assertEquals("false", journal.latest(pkg, 10).getString("%am_restore_request_verified"));
+        } finally { store.delete(); new java.io.File(store + ".bak").delete();
+                    new java.io.File(store + ".new").delete(); }
+    }
+
     @Test public void testManageUnknownOperationAlwaysDenied() {
         Context context = InstrumentationRegistry.getInstrumentation().getTargetContext();
         android.os.Bundle vars = TaskerPackageManageBackend.execute(context, "com.example.app", "suspend");

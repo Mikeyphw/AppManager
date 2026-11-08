@@ -9,4 +9,9 @@ include ':libopenpgp'
 include ':libserver'
 include ':server'
 rootProject.name = "AppManager"
+// AMT-06C: the disposable physical-device fixture is never part of normal builds.
+if (providers.gradleProperty("amt06cFixture").orNull == "true") {
+    include ':amt06cfixture'
+    project(':amt06cfixture').projectDir = file('scripts/devtool/amt06c_fixture')
+}
 gradle.ext.appManagerRoot = settingsDir
