@@ -10,7 +10,7 @@ name: Devtool Tasker integration / hosted Android
         type: choice
         options: [source, build, test, lint, instrumentation, full]
   push:
-    branches: [feature/tasker-automation]
+    branches: [feature/tasker-automation, 'feature/amui01*']
     paths:
       - '.devtool.toml'
       - 'devtoolw*'
@@ -95,7 +95,7 @@ jobs:
   hosted-android:
     name: Android Gradle through Devtool (GitHub-hosted only)
     needs: [source-contract]
-    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'source' && inputs.mode != 'instrumentation')
+    if: github.event_name == 'pull_request' || (github.event_name == 'workflow_dispatch' && inputs.mode != 'source' && inputs.mode != 'instrumentation') || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/amui01'))
     runs-on: ubuntu-latest
     timeout-minutes: 90
     steps:
@@ -130,7 +130,7 @@ jobs:
       - name: Devtool Android action / workflow execution
         shell: bash
         env:
-          MODE: ${{ github.event_name == 'pull_request' && 'full' || inputs.mode || 'source' }}
+          MODE: ${{ github.event_name == 'pull_request' && 'full' || (github.event_name == 'push' && 'full') || inputs.mode || 'source' }}
         run: |
           set -euo pipefail
           : "${JAVA_HOME:?GitHub setup-java must expose JAVA_HOME}"
@@ -190,7 +190,7 @@ jobs:
             find app/build/outputs/apk/debug -type f -name '*.apk' -print0 | sort -z | xargs -0 sha256sum > devtool-apk-sha256.txt
           fi
       - name: Upload debug APKs and integrity manifest (not release-signed)
-        if: always() && (inputs.mode == 'build' || inputs.mode == 'full' || github.event_name == 'pull_request')
+        if: always() && (inputs.mode == 'build' || inputs.mode == 'full' || github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/amui01')))
         uses: actions/upload-artifact@v4
         with:
           name: appmanager-devtool-debug-${{ github.run_id }}-${{ github.run_attempt }}
@@ -201,7 +201,7 @@ jobs:
           retention-days: 7
 
       - name: Upload hosted Android lint report and baseline audit
-        if: always() && (inputs.mode == 'lint' || inputs.mode == 'full' || github.event_name == 'pull_request')
+        if: always() && (inputs.mode == 'lint' || inputs.mode == 'full' || github.event_name == 'pull_request' || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/amui01')))
         uses: actions/upload-artifact@v4
         with:
           name: appmanager-lint-report-${{ github.run_id }}-${{ github.run_attempt }}
@@ -215,7 +215,7 @@ jobs:
   device-instrumentation:
     name: AMT-03 Android instrumentation via Devtool emulator
     needs: [source-contract]
-    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'full' || inputs.mode == 'instrumentation')
+    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'full' || inputs.mode == 'instrumentation') || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/amui01'))
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:
@@ -287,7 +287,7 @@ jobs:
   amt06c-fixture:
     name: AMT-06C disposable debug fixture (hosted only)
     needs: [source-contract]
-    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'build' || inputs.mode == 'full')
+    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'build' || inputs.mode == 'full') || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/amui01'))
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -332,7 +332,7 @@ jobs:
   amui01-android16:
     name: AMUI-01 real package lifecycle on Android 16
     needs: [source-contract]
-    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'instrumentation' || inputs.mode == 'full')
+    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'instrumentation' || inputs.mode == 'full') || (github.event_name == 'push' && startsWith(github.ref, 'refs/heads/feature/amui01'))
     runs-on: ubuntu-latest
     timeout-minutes: 75
     steps:

@@ -97,6 +97,8 @@ def check():
     assert "disable-linux-hw-accel: 'false'" in api36_job, 'AMUI01_CI_REFUSED: Android16 KVM policy lost'
     assert 'script: bash scripts/devtool/amt03_hosted_instrumentation.sh && bash scripts/devtool/amui01_hosted_instrumentation.sh' in api35_job
     assert 'script: AMUI01_EXPECT_API=36 bash scripts/devtool/amui01_hosted_instrumentation.sh' in api36_job
+    from check_amui01_ci_push import validate_workflow
+    validate_workflow(workflow)
     script=read(Path('scripts/devtool/amui01_hosted_instrumentation.sh'))
     for needed in ('adb install --user 0', 'adb uninstall "$fixture"',
                    'Amui01InstalledInstrumentedTest', 'Amui01RemovedInstrumentedTest',
