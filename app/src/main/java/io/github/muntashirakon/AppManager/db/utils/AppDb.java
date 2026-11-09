@@ -163,25 +163,20 @@ public class AppDb {
     public List<App> updateApplications(@NonNull Context context, @NonNull String[] packageNames) {
         synchronized (sLock) {
             List<App> appList = new ArrayList<>();
-            for (String packageName : packageNames) {
-                appList.addAll(updateApplicationInternal(context, packageName));
-            }
-            // Update usage and others
-            updateVariableData(context, appList);
-            mAppDao.insert(appList);
+            AppsDb.getInstance().runInTransaction(() -> {
+                for (String packageName : packageNames) {
+                    appList.addAll(updateApplicationInternal(context, packageName));
+                }
+                updateVariableData(context, appList);
+                mAppDao.insert(appList);
+            });
             return appList;
         }
     }
 
     @WorkerThread
     public List<App> updateApplication(@NonNull Context context, @NonNull String packageName) {
-        synchronized (sLock) {
-            List<App> appList = updateApplicationInternal(context, packageName);
-            // Update usage and others
-            updateVariableData(context, appList);
-            mAppDao.insert(appList);
-            return appList;
-        }
+        return updateApplications(context, new String[]{packageName});
     }
 
     @WorkerThread
@@ -192,6 +187,10 @@ public class AppDb {
         List<App> appList = new ArrayList<>(userIds.length);
         List<Backup> backups = new ArrayList<>(mBackupDao.get(packageName));
         for (int userId : userIds) {
+            if (!SelfPermissions.checkCrossUserPermission(userId, false)) {
+                // A package query failure for an inaccessible profile is not an uninstall.
+                continue;
+            }
             int oldAppIndex = findIndexOfApp(oldApps, packageName, userId);
             PackageInfo packageInfo = null;
             Backup backup = null;
@@ -210,8 +209,11 @@ public class AppDb {
                                 | PackageManager.GET_RECEIVERS | PackageManager.GET_PROVIDERS
                                 | PackageManager.GET_SERVICES | MATCH_DISABLED_COMPONENTS | MATCH_UNINSTALLED_PACKAGES
                                 | MATCH_STATIC_SHARED_AND_SDK_LIBRARIES, userId);
-            } catch (RemoteException | PackageManager.NameNotFoundException | SecurityException e) {
-                // Package does not exist
+            } catch (PackageManager.NameNotFoundException e) {
+                // Only an authoritative not-found in a readable user may imply uninstall.
+            } catch (RemoteException | SecurityException e) {
+                throw new IllegalStateException("Cannot reconcile " + packageName
+                        + " for user " + userId, e);
             }
             if (backup == null && packageInfo == null) {
                 // Neither backup nor package exist
@@ -247,24 +249,53 @@ public class AppDb {
         return appList;
     }
 
+    /** An authoritative reconciliation report. Skipped users are never assumed uninstalled. */
+    public static final class SyncReport {
+        public final int scannedUsers;
+        public final int skippedUsers;
+        public final int packageCount;
+
+        public SyncReport(int scannedUsers, int skippedUsers, int packageCount) {
+            this.scannedUsers = scannedUsers;
+            this.skippedUsers = skippedUsers;
+            this.packageCount = packageCount;
+        }
+
+        public boolean isPartial() {
+            return skippedUsers > 0;
+        }
+    }
+
     @WorkerThread
     public void updateApplications(@NonNull Context context) {
+        updateApplicationsChecked(context);
+    }
+
+    @WorkerThread
+    @NonNull
+    public SyncReport updateApplicationsChecked(@NonNull Context context) {
         synchronized (sLock) {
             Map<String, Backup> backups = getBackups(false);
             List<App> oldApps = new ArrayList<>(mAppDao.getAll());
             List<App> modifiedApps = new ArrayList<>();
             Set<String> newApps = new HashSet<>();
             Set<String> updatedApps = new HashSet<>();
+            Set<Integer> scannedUsers = new HashSet<>();
+            int skippedUsers = 0;
 
-            // Interrupt thread on request
-            if (ThreadUtils.isInterrupted()) return;
+            // This is an authoritative transaction; no incomplete scan may mutate the DB.
+            if (ThreadUtils.isInterrupted()) throw new IllegalStateException("Package scan interrupted");
 
             for (int userId : Users.getUsersIds()) {
                 // Interrupt thread on request
-                if (ThreadUtils.isInterrupted()) return;
+                if (ThreadUtils.isInterrupted()) throw new IllegalStateException("Package scan interrupted");
 
                 if (!SelfPermissions.checkCrossUserPermission(userId, false)) {
-                    // No support for cross user
+                    // Do not purge rows from an inaccessible user or work profile.
+                    if (userId == UserHandleHidden.myUserId())
+                        throw new IllegalStateException("Current user cannot be enumerated");
+                    ++skippedUsers;
+                    Log.w(TAG, "Preserving cached applications for inaccessible user " + userId);
                     continue;
                 }
 
@@ -273,10 +304,18 @@ public class AppDb {
                                 | PackageManager.GET_RECEIVERS | PackageManager.GET_PROVIDERS
                                 | PackageManager.GET_SERVICES | MATCH_DISABLED_COMPONENTS
                                 | MATCH_UNINSTALLED_PACKAGES | MATCH_STATIC_SHARED_AND_SDK_LIBRARIES, userId);
+                if (packageInfoList == null || packageInfoList.isEmpty()) {
+                    // Every usable Android user has core packages. An empty binder response
+                    // is not evidence that all cached apps were uninstalled.
+                    throw new IllegalStateException("Empty or failed package scan for user " + userId);
+                }
+                scannedUsers.add(userId);
 
                 for (PackageInfo packageInfo : packageInfoList) {
                     // Interrupt thread on request
-                    if (ThreadUtils.isInterrupted()) return;
+                    if (ThreadUtils.isInterrupted()) throw new IllegalStateException("Package scan interrupted");
+                    if (packageInfo == null || packageInfo.applicationInfo == null)
+                        throw new IllegalStateException("Incomplete package metadata for user " + userId);
 
                     int oldAppIndex = findIndexOfApp(oldApps, packageInfo.packageName, UserHandleHidden.getUserId(packageInfo.applicationInfo.uid));
                     if (oldAppIndex >= 0) {
@@ -305,8 +344,9 @@ public class AppDb {
             // Add rest of the backup items, i.e., items that aren't installed
             for (Backup backup : backups.values()) {
                 if (backup == null) continue;
+                if (!scannedUsers.contains(backup.userId)) continue;
                 // Interrupt thread on request
-                if (ThreadUtils.isInterrupted()) return;
+                if (ThreadUtils.isInterrupted()) throw new IllegalStateException("Backup scan interrupted");
 
                 int oldAppIndex = findIndexOfApp(oldApps, backup.packageName, backup.userId);
                 if (oldAppIndex >= 0) {
@@ -324,9 +364,16 @@ public class AppDb {
                 newApps.add(app.packageName);
                 modifiedApps.add(app);
             }
-            // Add new data
-            mAppDao.delete(oldApps);
-            mAppDao.insert(modifiedApps);
+            if (scannedUsers.isEmpty()) {
+                throw new IllegalStateException("No accessible users were scanned");
+            }
+            // Inaccessible profiles are not uninstalls. Preserve them in the DB.
+            oldApps.removeIf(app -> !scannedUsers.contains(app.userId));
+            // Atomic mutation: failures never leave the DB half-deleted.
+            AppsDb.getInstance().runInTransaction(() -> {
+                mAppDao.delete(oldApps);
+                mAppDao.insert(modifiedApps);
+            });
             if (!oldApps.isEmpty()) {
                 // Delete broadcast
                 BroadcastUtils.sendDbPackageRemoved(context, getPackageNamesFromApps(oldApps));
@@ -339,6 +386,9 @@ public class AppDb {
                 // Altered apps
                 BroadcastUtils.sendDbPackageAltered(context, updatedApps.toArray(new String[0]));
             }
+            Log.i(TAG, "AMUI01 scan: users=%d skipped=%d rows=%d", scannedUsers.size(),
+                    skippedUsers, modifiedApps.size());
+            return new SyncReport(scannedUsers.size(), skippedUsers, modifiedApps.size());
         }
 
     }

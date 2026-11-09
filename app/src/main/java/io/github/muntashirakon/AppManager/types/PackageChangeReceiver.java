@@ -9,23 +9,19 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.os.Build;
-import android.os.Bundle;
-import android.os.Handler;
-import android.os.HandlerThread;
-import android.os.Looper;
-import android.os.Message;
-import android.os.Process;
+import android.net.Uri;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.annotation.UiThread;
 import androidx.annotation.WorkerThread;
 import androidx.core.content.ContextCompat;
-import androidx.core.os.BundleCompat;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import io.github.muntashirakon.AppManager.BuildConfig;
 import io.github.muntashirakon.AppManager.batchops.BatchOpsManager;
@@ -64,10 +60,31 @@ public abstract class PackageChangeReceiver extends BroadcastReceiver {
      */
     public static final String ACTION_DB_PACKAGE_REMOVED = BuildConfig.APPLICATION_ID + ".action.DB_PACKAGE_REMOVED";
 
+    // Registered receivers only hand work to the owning ViewModel. Do not create
+    // one HandlerThread per broadcast and do not outlive the broadcast pending result.
+    private static final ExecutorService RECEIVER_EXECUTOR = Executors.newSingleThreadExecutor(r -> {
+        Thread thread = new Thread(r, "PackageChangeReceiver");
+        thread.setDaemon(true);
+        return thread;
+    });
+
+    @Nullable
+    public static String[] packagesFromPackageIntent(@NonNull Intent intent) {
+        String[] changed = intent.getStringArrayExtra(Intent.EXTRA_CHANGED_PACKAGE_LIST);
+        if (changed != null && changed.length > 0) return changed;
+        Uri uri = intent.getData();
+        if (uri != null && "package".equals(uri.getScheme())) {
+            String name = uri.getSchemeSpecificPart();
+            if (name != null && !name.isEmpty()) return new String[]{name};
+        }
+        return null;
+    }
+
     public PackageChangeReceiver(@NonNull Context context) {
         IntentFilter filter = new IntentFilter(Intent.ACTION_PACKAGE_ADDED);
         filter.addAction(Intent.ACTION_PACKAGE_REMOVED);
         filter.addAction(Intent.ACTION_PACKAGE_CHANGED);
+        filter.addAction(Intent.ACTION_PACKAGE_REPLACED);
         filter.addDataScheme("package");
         ContextCompat.registerReceiver(context, this, filter, ContextCompat.RECEIVER_EXPORTED);
         // Other filters
@@ -95,39 +112,39 @@ public abstract class PackageChangeReceiver extends BroadcastReceiver {
     @Override
     @UiThread
     public final void onReceive(Context context, @NonNull Intent intent) {
-        HandlerThread thread = new HandlerThread("PackageChangeReceiver", Process.THREAD_PRIORITY_BACKGROUND);
-        thread.start();
-        ReceiverHandler receiverHandler = new ReceiverHandler(thread.getLooper());
-        Message msg = receiverHandler.obtainMessage();
-        Bundle args = new Bundle();
-        args.putParcelable("intent", intent);
-        msg.setData(args);
-        receiverHandler.sendMessage(msg);
-        thread.quitSafely();
+        final PendingResult pending = goAsync();
+        final Intent copy = new Intent(intent);
+        try {
+            RECEIVER_EXECUTOR.execute(() -> {
+                try {
+                    dispatchPackageChange(copy);
+                } finally {
+                    pending.finish();
+                }
+            });
+        } catch (RuntimeException error) {
+            pending.finish();
+            throw error;
+        }
     }
 
-    // Handler that receives messages from the thread
-    private final class ReceiverHandler extends Handler {
-        public ReceiverHandler(Looper looper) {
-            super(looper);
-        }
-
-        @Override
-        public void handleMessage(@NonNull Message msg) {
-            Intent intent = Objects.requireNonNull(BundleCompat.getParcelable(msg.getData(), "intent", Intent.class));
-            switch (Objects.requireNonNull(intent.getAction())) {
+    @WorkerThread
+    private void dispatchPackageChange(@NonNull Intent intent) {
+        switch (Objects.requireNonNull(intent.getAction())) {
                 case Intent.ACTION_PACKAGE_REMOVED:
                     if (intent.getBooleanExtra(Intent.EXTRA_REPLACING, false)) {
                         // The package is being updated, not removed
                         return;
                     }
                 case Intent.ACTION_PACKAGE_ADDED:
+                case Intent.ACTION_PACKAGE_REPLACED:
                 case Intent.ACTION_PACKAGE_CHANGED:
                 case Intent.ACTION_PACKAGE_RESTARTED: {
+                    // Prefer exact package URI even for a UID shared by multiple apps.
+                    // A missing EXTRA_UID must never drop ACTION_PACKAGE_ADDED.
+                    String[] packages = packagesFromPackageIntent(intent);
                     int uid = intent.getIntExtra(Intent.EXTRA_UID, -1);
-                    if (uid != -1) {
-                        onPackageChanged(intent, uid, null);
-                    }
+                    onPackageChanged(intent, packages == null && uid >= 0 ? uid : null, packages);
                     return;
                 }
                 case ACTION_PACKAGE_ADDED:
@@ -166,7 +183,6 @@ public abstract class PackageChangeReceiver extends BroadcastReceiver {
                         }
                     }
                 }
-            }
         }
     }
 }

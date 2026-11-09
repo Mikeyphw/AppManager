@@ -20,6 +20,12 @@ name: Devtool Tasker integration / hosted Android
       - 'app/src/main/java/io/github/muntashirakon/AppManager/batchops/BatchOpsService.java'
       - 'app/src/test/java/io/github/muntashirakon/AppManager/automation/**'
       - 'app/src/androidTest/java/io/github/muntashirakon/AppManager/automation/**'
+      - 'app/src/main/java/io/github/muntashirakon/AppManager/main/**'
+      - 'app/src/main/java/io/github/muntashirakon/AppManager/types/PackageChangeReceiver.java'
+      - 'app/src/main/java/io/github/muntashirakon/AppManager/utils/PackageUtils.java'
+      - 'app/src/main/java/io/github/muntashirakon/AppManager/db/utils/AppDb.java'
+      - 'app/src/main/java/io/github/muntashirakon/AppManager/compat/PackageManagerCompat.java'
+      - 'app/src/androidTest/java/io/github/muntashirakon/AppManager/main/**'
   pull_request:
     branches: [master]
 
@@ -58,6 +64,7 @@ jobs:
           python3 scripts/devtool/check_amt06a_contract.py --check
           python3 scripts/devtool/check_amt06b_contract.py --check
           python3 scripts/devtool/check_amt06c_contract.py --check
+          python3 scripts/devtool/check_amui01_contract.py --check
           python3 -m unittest discover -s scripts/devtool -p 'test_*.py' -v
           sh -n devtoolw
       - name: Verify upstream merge compatibility without changing the tree
@@ -263,7 +270,7 @@ jobs:
           disable-linux-hw-accel: false
           emulator-boot-timeout: 900
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
-          script: bash scripts/devtool/amt03_hosted_instrumentation.sh
+          script: bash scripts/devtool/amt03_hosted_instrumentation.sh && bash scripts/devtool/amui01_hosted_instrumentation.sh
       - name: Upload instrumentation receipt and diagnostics
         if: always()
         uses: actions/upload-artifact@v4
@@ -272,6 +279,8 @@ jobs:
           path: |
             ${{ runner.temp }}/amt03-instrumentation.json
             ${{ runner.temp }}/amt03-instrumentation.log
+            ${{ runner.temp }}/amui01-*.json
+            ${{ runner.temp }}/amui01-*.log
           if-no-files-found: warn
           retention-days: 7
 
@@ -317,5 +326,67 @@ jobs:
           path: |
             scripts/devtool/amt06c_fixture/build/outputs/apk/debug/*.apk
             scripts/devtool/amt06c_fixture/SHA256SUMS.txt
+          if-no-files-found: error
+          retention-days: 7
+
+  amui01-android16:
+    name: AMUI-01 real package lifecycle on Android 16
+    needs: [source-contract]
+    if: github.event_name == 'workflow_dispatch' && (inputs.mode == 'instrumentation' || inputs.mode == 'full')
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '21'
+          cache: gradle
+      - uses: android-actions/setup-android@v4
+        with:
+          packages: 'platform-tools'
+      - name: Provision exact Android/Devtool SDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          sdkmanager --install 'platforms;android-36' 'build-tools;36.1.0' 'platform-tools' 'cmake;3.22.1' 'ndk;27.0.12077973'
+          git clone --no-checkout https://github.com/Mikeyphw/devtool.git "$RUNNER_TEMP/devtool-source"
+          git -C "$RUNNER_TEMP/devtool-source" checkout --detach bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
+          test "$(git -C "$RUNNER_TEMP/devtool-source" rev-parse HEAD)" = bee6e0b7e49aaaa0c56f755fd5be434a27c52b6c
+          python3 -m pip install "$RUNNER_TEMP/devtool-source"
+          if [[ ! -c /dev/kvm ]]; then
+            echo '::error::KVM device unavailable for API36 emulator' >&2; exit 1;
+          fi
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules > /dev/null
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+          test -r /dev/kvm && test -w /dev/kvm || {
+            echo '::error::KVM inaccessible for API36 emulator' >&2; exit 1;
+          }
+      - name: API36 real installed/removed package acceptance
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 36
+          target: google_apis
+          arch: x86_64
+          profile: pixel_6
+          disable-linux-hw-accel: 'false'
+          emulator-boot-timeout: 900
+          emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          script: AMUI01_EXPECT_API=36 bash scripts/devtool/amui01_hosted_instrumentation.sh
+      - name: Upload exact API36 lifecycle receipts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: appmanager-amui01-api36-${{ github.run_id }}-${{ github.run_attempt }}
+          path: |
+            ${{ runner.temp }}/amui01-*.json
+            ${{ runner.temp }}/amui01-*.log
           if-no-files-found: error
           retention-days: 7

@@ -89,7 +89,25 @@ public class MainRecyclerAdapter extends MultiSelectionView.Adapter<ApplicationI
 
         @Override
         public boolean areContentsTheSame(@NonNull ApplicationItem oldItem, @NonNull ApplicationItem newItem) {
-            return oldItem.getItemVersion() == newItem.getItemVersion();
+            return oldItem.getItemVersion() == newItem.getItemVersion()
+                    && Objects.equals(oldItem.label, newItem.label)
+                    && Objects.equals(oldItem.versionName, newItem.versionName)
+                    && oldItem.versionCode == newItem.versionCode
+                    && oldItem.flags == newItem.flags
+                    && oldItem.uid == newItem.uid
+                    && oldItem.isInstalled == newItem.isInstalled
+                    && oldItem.isDisabled == newItem.isDisabled
+                    && oldItem.isSelected == newItem.isSelected
+                    && oldItem.isOnlyDataInstalled == newItem.isOnlyDataInstalled
+                    && oldItem.hasSplits == newItem.hasSplits
+                    && oldItem.hasKeystore == newItem.hasKeystore
+                    && Objects.equals(oldItem.targetSdk, newItem.targetSdk)
+                    && Objects.equals(oldItem.totalSize, newItem.totalSize)
+                    && Objects.equals(oldItem.trackerCount, newItem.trackerCount)
+                    && Objects.equals(oldItem.blockedCount, newItem.blockedCount)
+                    && Objects.equals(oldItem.lastUpdateTime, newItem.lastUpdateTime)
+                    && Objects.equals(oldItem.backup, newItem.backup)
+                    && java.util.Arrays.equals(oldItem.userIds, newItem.userIds);
         }
     };
 

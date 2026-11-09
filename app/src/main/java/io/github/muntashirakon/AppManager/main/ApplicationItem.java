@@ -232,6 +232,64 @@ public class ApplicationItem extends PackageItemInfo implements IFilterableAppIn
         super();
     }
 
+    /** UI-only value snapshot: avoid comparing two references to the same mutable row. */
+    @NonNull
+    public ApplicationItem snapshotForList() {
+        ApplicationItem copy = new ApplicationItem();
+        copy.packageName = packageName;
+        copy.name = name;
+        copy.versionName = versionName;
+        copy.versionCode = versionCode;
+        copy.backup = backup;
+        copy.flags = flags;
+        copy.uid = uid;
+        copy.sharedUserId = sharedUserId;
+        copy.label = label;
+        copy.debuggable = debuggable;
+        copy.firstInstallTime = firstInstallTime;
+        copy.lastUpdateTime = lastUpdateTime;
+        copy.targetSdk = targetSdk;
+        copy.sha = sha;
+        copy.blockedCount = blockedCount;
+        copy.trackerCount = trackerCount;
+        copy.lastActionTime = lastActionTime;
+        copy.dataUsage = dataUsage;
+        copy.totalSize = totalSize;
+        copy.openCount = openCount;
+        copy.screenTime = screenTime;
+        copy.lastUsageTime = lastUsageTime;
+        copy.isUser = isUser;
+        copy.isDisabled = isDisabled;
+        copy.isInstalled = isInstalled;
+        copy.isOnlyDataInstalled = isOnlyDataInstalled;
+        copy.hasActivities = hasActivities;
+        copy.hasSplits = hasSplits;
+        copy.hasKeystore = hasKeystore;
+        copy.usesSaf = usesSaf;
+        copy.ssaid = ssaid;
+        copy.isSelected = isSelected;
+        copy.userIds = userIds.clone();
+        copy.isStopped = isStopped;
+        copy.isSystem = isSystem;
+        copy.isPersistent = isPersistent;
+        copy.usesCleartextTraffic = usesCleartextTraffic;
+        copy.canReadLogs = canReadLogs;
+        copy.allowClearingUserData = allowClearingUserData;
+        copy.isAppInactive = isAppInactive;
+        copy.uidOrAppIds = uidOrAppIds;
+        copy.issuerShortName = issuerShortName;
+        copy.versionTag = versionTag;
+        copy.appTypePostfix = appTypePostfix;
+        copy.sdkString = sdkString;
+        copy.diffInstallUpdateInDays = diffInstallUpdateInDays;
+        copy.lastBackupDays = lastBackupDays;
+        copy.backupFlagsStr = backupFlagsStr == null ? null : new StringBuilder(backupFlagsStr);
+        copy.mPackageUsageInfo = mPackageUsageInfo;
+        copy.mIsRunning = mIsRunning;
+        copy.itemVersion = itemVersion;
+        return copy;
+    }
+
     public void generateOtherInfo() {
         // Increment ApplicationItem version
         incItemVersion();

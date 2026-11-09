@@ -132,7 +132,13 @@ public final class PackageManagerCompat {
         List<PackageInfo> refPackages = getInstalledPackagesInternal(pm, flags & NEEDED_FLAGS, userId);
         List<PackageInfo> packageInfoList = getInstalledPackagesInternal(pm, flags, userId);
         if (packageInfoList.size() == refPackages.size()) {
-            // Everything's loaded correctly
+            Set<String> referenceNames = new HashSet<>();
+            Set<String> actualNames = new HashSet<>();
+            for (PackageInfo info : refPackages) referenceNames.add(info.packageName);
+            for (PackageInfo info : packageInfoList) actualNames.add(info.packageName);
+            if (!referenceNames.equals(actualNames)) {
+                throw new IllegalStateException("Inconsistent package identities for user " + userId);
+            }
             return packageInfoList;
         }
         if (packageInfoList.size() > refPackages.size()) {
@@ -151,14 +157,14 @@ public final class PackageManagerCompat {
         packageInfoList = new ArrayList<>(refPackages.size());
         for (int i = 0; i < refPackages.size(); ++i) {
             if (ThreadUtils.isInterrupted()) {
-                break;
+                throw new IllegalStateException("Interrupted while enumerating packages for user " + userId);
             }
             String packageName = refPackages.get(i).packageName;
             try {
                 packageInfoList.add(getPackageInfo(pm, packageName, flags, userId));
             } catch (Exception ex) {
-                Log.e(TAG, "Could not retrieve package info for " + packageName + " and user " + userId);
-                continue;
+                Log.e(TAG, "Incomplete package scan for " + packageName + " user " + userId, ex);
+                throw new IllegalStateException("Incomplete package scan for user " + userId, ex);
             }
             if (i % 100 == 0) {
                 // Prevent DeadObjectException
@@ -186,7 +192,7 @@ public final class PackageManagerCompat {
             return ExUtils.rethrowFromSystemServer(e);
         } catch (BadParcelableException e) {
             Log.w(TAG, "Could not retrieve all packages for user " + userId, e);
-            return Collections.emptyList();
+            throw new IllegalStateException("Invalid package query for user " + userId, e);
         }
     }
 

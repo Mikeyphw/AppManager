@@ -127,15 +127,31 @@ public final class PackageUtils {
      * @param loadBackups      Load/List backup metadata
      * @return List of applications, which could be the cached version if the executor parameter is {@code null}.
      */
+    /** Fast DB-only app list; never schedules a hidden PackageManager sync. */
+    @WorkerThread
+    @NonNull
+    public static List<ApplicationItem> getCachedInstalledOrBackedUpApplicationsFromDb(@NonNull Context context) {
+        return getInstalledOrBackedUpApplicationsFromDb(context, true, false, false);
+    }
+
     @WorkerThread
     @NonNull
     public static List<ApplicationItem> getInstalledOrBackedUpApplicationsFromDb(@NonNull Context context,
                                                                                  boolean loadInBackground,
                                                                                  boolean loadBackups) {
+        return getInstalledOrBackedUpApplicationsFromDb(context, loadInBackground, loadBackups, true);
+    }
+
+    @WorkerThread
+    @NonNull
+    private static List<ApplicationItem> getInstalledOrBackedUpApplicationsFromDb(@NonNull Context context,
+                                                                                   boolean loadInBackground,
+                                                                                   boolean loadBackups,
+                                                                                   boolean backgroundRefresh) {
         HashMap<String, ApplicationItem> applicationItems = new HashMap<>();
         AppDb appDb = new AppDb();
         List<App> apps = appDb.getAllApplications();
-        if (loadInBackground && apps.isEmpty()) {
+        if (backgroundRefresh && loadInBackground && apps.isEmpty()) {
             // Force-load in foreground
             loadInBackground = false;
         }
@@ -244,7 +260,7 @@ public final class PackageUtils {
             item.hasKeystore = backup.hasKeyStore;
             item.generateOtherInfo();
         }
-        if (loadInBackground) {
+        if (loadInBackground && backgroundRefresh) {
             // Update list of apps safely in the background.
             // We need to do this here to avoid locks in AppDb
             ThreadUtils.postOnBackgroundThread(() -> {

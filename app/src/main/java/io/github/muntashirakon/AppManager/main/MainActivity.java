@@ -272,7 +272,25 @@ public class MainActivity extends BaseActivity implements SwipeRefreshLayout.OnR
             if (mAdapter != null) {
                 mAdapter.setDefaultList(applicationItems);
             }
+        });
+        viewModel.getRefreshState().observe(this, status -> {
+            mSwipeRefresh.setRefreshing(status.running);
+            if (status.running) {
+                showProgressIndicator(true);
+                return;
+            }
             showProgressIndicator(false);
+            if (!status.success) {
+                Snackbar.make(mSwipeRefresh, "App sync failed (" + status.error + "). Cached apps kept.",
+                        Snackbar.LENGTH_LONG).show();
+            } else if (status.partial) {
+                Snackbar.make(mSwipeRefresh, "Apps updated; inaccessible profiles kept cached.",
+                        Snackbar.LENGTH_LONG).show();
+            } else if (status.filtered && status.sourceCount > status.visibleCount) {
+                Snackbar.make(mSwipeRefresh, "Updated " + status.sourceCount + " apps; "
+                        + status.visibleCount + " visible with current search/filters.",
+                        Snackbar.LENGTH_SHORT).show();
+            }
         });
         viewModel.getOperationStatus().observe(this, status -> {
             mProgressIndicator.hide();
@@ -322,8 +340,7 @@ public class MainActivity extends BaseActivity implements SwipeRefreshLayout.OnR
             listOptions.show(getSupportFragmentManager(), MainListOptions.TAG);
         } else if (id == R.id.action_refresh) {
             if (viewModel != null) {
-                showProgressIndicator(true);
-                viewModel.loadApplicationItems();
+                viewModel.refreshApplications("menu");
             }
         } else if (id == R.id.action_settings) {
             Intent settingsIntent = SettingsActivity.getSettingsIntent(this);
@@ -496,9 +513,7 @@ public class MainActivity extends BaseActivity implements SwipeRefreshLayout.OnR
 
     @Override
     public void onRefresh() {
-        showProgressIndicator(true);
-        if (viewModel != null) viewModel.loadApplicationItems();
-        mSwipeRefresh.setRefreshing(false);
+        if (viewModel != null) viewModel.refreshApplications("pull");
     }
 
     @Override
