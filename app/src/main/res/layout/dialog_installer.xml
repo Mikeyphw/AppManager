@@ -1,8 +1,9 @@
 <!-- SPDX-License-Identifier: GPL-3.0-or-later -->
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.appcompat.widget.LinearLayoutCompat xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
-    android:layout_height="wrap_content">
+    android:layout_height="wrap_content"
+    android:orientation="vertical">
 
     <!-- The sequence must be maintained. -->
     <androidx.fragment.app.FragmentContainerView
@@ -23,4 +24,13 @@
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="vertical" />
-</FrameLayout>
+    <com.google.android.material.materialswitch.MaterialSwitch
+        android:id="@+id/delete_original_apk"
+        style="@style/Widget.AppTheme.MaterialSwitch"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="@dimen/padding_medium"
+        android:layout_marginBottom="8dp"
+        android:text="@string/pref_delete_source_apk"
+        android:visibility="gone" />
+</androidx.appcompat.widget.LinearLayoutCompat>

@@ -29,6 +29,8 @@ public class CachedApkSource extends ApkSource {
 
     @NonNull
     private final Uri mUri;
+    @NonNull
+    private final Uri mOriginalUri;
     @Nullable
     private final String mMimeType;
 
@@ -37,8 +39,18 @@ public class CachedApkSource extends ApkSource {
     private File mCachedFile;
 
     CachedApkSource(@NonNull Uri uri, @Nullable String mimeType) {
+        this(uri, uri, mimeType);
+    }
+
+    private CachedApkSource(@NonNull Uri uri, @NonNull Uri originalUri, @Nullable String mimeType) {
         mUri = Objects.requireNonNull(uri);
+        mOriginalUri = Objects.requireNonNull(originalUri);
         mMimeType = mimeType;
+    }
+
+    @NonNull
+    public Uri getOriginalUri() {
+        return mOriginalUri;
     }
 
     @NonNull
@@ -76,7 +88,7 @@ public class CachedApkSource extends ApkSource {
         if (mCachedFile != null && mCachedFile.exists()) {
             uri = Uri.fromFile(mCachedFile);
         } else uri = mUri;
-        return new CachedApkSource(uri, mMimeType);
+        return new CachedApkSource(uri, mOriginalUri, mMimeType);
     }
 
     public void cleanup() {
@@ -86,6 +98,8 @@ public class CachedApkSource extends ApkSource {
 
     protected CachedApkSource(@NonNull Parcel in) {
         mUri = Objects.requireNonNull(ParcelCompat.readParcelable(in, Uri.class.getClassLoader(), Uri.class));
+        Uri originalUri = ParcelCompat.readParcelable(in, Uri.class.getClassLoader(), Uri.class);
+        mOriginalUri = originalUri != null ? originalUri : mUri;
         mMimeType = in.readString();
         mApkFileKey = in.readInt();
         String file = in.readString();
@@ -102,6 +116,7 @@ public class CachedApkSource extends ApkSource {
     @Override
     public void writeToParcel(@NonNull Parcel dest, int flags) {
         dest.writeParcelable(mUri, flags);
+        dest.writeParcelable(mOriginalUri, flags);
         dest.writeString(mMimeType);
         dest.writeInt(mApkFileKey);
         String file = mCachedFile != null ? mCachedFile.getAbsolutePath() : null;
@@ -110,7 +125,8 @@ public class CachedApkSource extends ApkSource {
 
     protected CachedApkSource(@NonNull JSONObject jsonObject) throws JSONException {
         mUri = Uri.parse(jsonObject.getString("uri"));
-        mMimeType = jsonObject.getString("mime_type");
+        mOriginalUri = Uri.parse(jsonObject.optString("original_uri", mUri.toString()));
+        mMimeType = JSONUtils.optString(jsonObject, "mime_type", null);
         mApkFileKey = jsonObject.getInt("apk_file_key");
         String cachedFile = JSONUtils.optString(jsonObject, "cached_file", null);
         mCachedFile = cachedFile != null ? new File(cachedFile) : null;
@@ -122,6 +138,7 @@ public class CachedApkSource extends ApkSource {
         JSONObject jsonObject = new JSONObject();
         jsonObject.put("tag", TAG);
         jsonObject.put("uri", mUri.toString());
+        jsonObject.put("original_uri", mOriginalUri.toString());
         jsonObject.put("mime_type", mMimeType);
         jsonObject.put("apk_file_key", mApkFileKey);
         jsonObject.put("cached_file", mCachedFile != null ? mCachedFile.getAbsolutePath() : null);

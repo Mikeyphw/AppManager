@@ -36,6 +36,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import io.github.muntashirakon.AppManager.apk.ApkFile;
 import io.github.muntashirakon.AppManager.apk.ApkSource;
+import io.github.muntashirakon.AppManager.settings.Prefs;
 import io.github.muntashirakon.AppManager.compat.ApplicationInfoCompat;
 import io.github.muntashirakon.AppManager.logs.Log;
 import io.github.muntashirakon.AppManager.rules.compontents.ComponentUtils;
@@ -148,6 +149,9 @@ public class PackageInstallerViewModel extends AndroidViewModel {
             return mCurrentItem;
         }
         mCurrentItem = mPendingItems.poll();
+        // Per-item destructive choice never leaks to the next queued APK.
+        mInstallerOptions.setDeleteApkAfterInstall(Prefs.Installer.deleteApkAfterInstall());
+        mSavedStateHandle.set(STATE_INSTALLER_OPTIONS, InstallerOptions.copyOf(mInstallerOptions));
         mCurrentItemSubmitted = false;
         mInstallResult = null;
         persistQueueState();

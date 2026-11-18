@@ -32,6 +32,12 @@
             app:summary="@string/pref_display_changes_msg"
             app:title="@string/pref_display_changes" />
 
+        <SwitchPreferenceCompat
+            app:iconSpaceReserved="false"
+            app:key="installer_delete_apk_after_install"
+            app:summary="@string/pref_delete_source_apk_summary"
+            app:title="@string/pref_delete_source_apk" />
+
     </PreferenceCategory>
 
     <PreferenceCategory

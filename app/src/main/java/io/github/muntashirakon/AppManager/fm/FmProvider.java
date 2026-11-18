@@ -251,6 +251,14 @@ public class FmProvider extends ContentProvider {
         return builder.build();
     }
 
+    /** Decode only an explicit external-storage file URI for installer cleanup. */
+    @Nullable
+    public static Uri getOriginalFileUriForInstallerCleanup(@NonNull Uri providerUri) {
+        if (!AUTHORITY.equals(providerUri.getAuthority())) return null;
+        Uri original = getFileProviderPathInternal(providerUri);
+        return ContentResolver.SCHEME_FILE.equals(original.getScheme()) ? original : null;
+    }
+
     @NonNull
     private static String checkMode(@NonNull String mode) {
         // Add `t` flag if neither truncate nor append is supplied

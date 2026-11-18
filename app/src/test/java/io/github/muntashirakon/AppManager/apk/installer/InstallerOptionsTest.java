@@ -44,6 +44,7 @@ public class InstallerOptionsTest {
         source.setSignApkFiles(true);
         source.setForceDexOpt(true);
         source.setBlockTrackers(true);
+        source.setDeleteApkAfterInstall(true);
         String originalJson = source.serializeToJson().toString();
 
         InstallerOptions draft = InstallerOptions.copyOf(source);
@@ -60,6 +61,7 @@ public class InstallerOptionsTest {
         draft.setSignApkFiles(false);
         draft.setForceDexOpt(false);
         draft.setBlockTrackers(false);
+        draft.setDeleteApkAfterInstall(false);
 
         assertEquals(originalJson, source.serializeToJson().toString());
         assertNotEquals(originalJson, draft.serializeToJson().toString());
@@ -90,6 +92,7 @@ public class InstallerOptionsTest {
             ParcelCompat.writeBoolean(parcel, false);
             parcel.writeInt(99);
             parcel.writeInt(0);
+            ParcelCompat.writeBoolean(parcel, false);
             ParcelCompat.writeBoolean(parcel, false);
             ParcelCompat.writeBoolean(parcel, false);
             ParcelCompat.writeBoolean(parcel, false);
@@ -207,6 +210,23 @@ public class InstallerOptionsTest {
         assertEquals(true, allowed.isBlockTrackers());
         assertEquals(10, unavailable.getUserId());
         assertEquals(false, unavailable.isBlockTrackers());
+    }
+
+    @Test
+    public void deletionOptionRoundTripsJsonAndParcel() throws Exception {
+        InstallerOptions source = InstallerOptions.getDefault();
+        source.setDeleteApkAfterInstall(true);
+        InstallerOptions fromJson = InstallerOptions.DESERIALIZER.deserialize(source.serializeToJson());
+        assertEquals(true, fromJson.isDeleteApkAfterInstall());
+        Parcel parcel = Parcel.obtain();
+        try {
+            source.writeToParcel(parcel, 0);
+            parcel.setDataPosition(0);
+            assertEquals(true, InstallerOptions.CREATOR.createFromParcel(parcel).isDeleteApkAfterInstall());
+        } finally { parcel.recycle(); }
+        JSONObject legacy = source.serializeToJson();
+        legacy.remove("delete_apk_after_install");
+        assertEquals(false, InstallerOptions.DESERIALIZER.deserialize(legacy).isDeleteApkAfterInstall());
     }
 
     private static ApkQueueItem queueItem(String originatingPackage) throws Exception {

@@ -1656,4 +1656,8 @@
     <string name="manual_wireless_debugging_title">Connect using Wireless Debugging</string>
     <string name="launch_activity_dialog_title">Launch activity: action required</string>
     <string name="launch_activity_dialog_message">Android 5.x cannot trigger the <b>Search assistant</b> automatically. To open the activity, activate the Search assistant manually (usually by long-pressing the Home button). Tap <b>Close</b> after the activity opens to restore the original assistant.</string>
+    <string name="pref_delete_source_apk">Delete original APK after installation</string>
+    <string name="pref_delete_source_apk_summary">Default for each installation; only original user-selected APK files are eligible. Failed installs keep the file.</string>
+    <string name="installer_source_apk_deleted">Original APK file deleted.</string>
+    <string name="installer_source_apk_retained">Original APK could not be deleted. The installed app is unaffected.</string>
 </resources>
