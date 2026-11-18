@@ -244,6 +244,9 @@ public class PackageInstallerActivity extends BaseActivity implements InstallerD
                     if (options != null) {
                         mModel.updateInstallerOptions(options);
                         mInstallerOptions = mModel.getInstallerOptions();
+                        if (mDialogHelper != null && mCurrentItem != null) {
+                            configureSourceDeletion();
+                        }
                     }
                 });
         if (!mModel.isQueueInitialized()) {
@@ -282,6 +285,7 @@ public class PackageInstallerActivity extends BaseActivity implements InstallerD
             // TODO: Resolve dependencies
             mDialogHelper.onParseSuccess(packageResult.getAppLabel(), getVersionInfoWithTrackers(packageResult),
                     packageResult.getAppIcon(), v -> displayInstallerOptions());
+            configureSourceDeletion();
             displayChangesOrInstallationPrompt();
         });
         mModel.packageUninstalledLiveData().observe(this, success -> {
@@ -339,6 +343,17 @@ public class PackageInstallerActivity extends BaseActivity implements InstallerD
     }
 
     @UiThread
+    private void configureSourceDeletion() {
+        if (mCurrentItem == null || mDialogHelper == null) return;
+        boolean lastSourceInQueue = !OriginalApkDeletion.hasLaterSource(mCurrentItem, mModel.getPendingItems());
+        mDialogHelper.configureSourceDeletion(OriginalApkDeletion.isEligible(mCurrentItem) && lastSourceInQueue,
+                mInstallerOptions.isDeleteApkAfterInstall(),
+                (button, checked) -> {
+                    mInstallerOptions.setDeleteApkAfterInstall(checked);
+                    mModel.updateInstallerOptions(mInstallerOptions);
+                });
+    }
+
     private void displayChangesOrInstallationPrompt() {
         // This dialog either calls triggerInstall() or triggerCancel()
         boolean displayChanges;
@@ -433,6 +448,10 @@ public class PackageInstallerActivity extends BaseActivity implements InstallerD
         InstallerOptions effectiveOptions = InstallerOptions.resolveEffectiveOptions(mInstallerOptions,
                 packageInfo.packageName, ApplicationInfoCompat.isTestOnly(packageInfo.applicationInfo));
         int userId = effectiveOptions.getUserId();
+        // Defer cleanup until the last queued operation using this archive.
+        if (OriginalApkDeletion.hasLaterSource(mCurrentItem, mModel.getPendingItems())) {
+            effectiveOptions.setDeleteApkAfterInstall(false);
+        }
         mCurrentItem.setInstallerOptions(effectiveOptions);
         mCurrentItem.setSelectedSplits(mModel.getSelectedSplitsForInstallation());
         int lastUserId = userId == UserHandleHidden.USER_ALL ? UserHandleHidden.myUserId() : userId;
@@ -585,6 +604,7 @@ public class PackageInstallerActivity extends BaseActivity implements InstallerD
             mIsDealingWithApk = true;
             mDialogHelper.initProgress(v -> goToNext());
             mCurrentItem = Objects.requireNonNull(mModel.startNextQueueItem());
+            mInstallerOptions = mModel.getInstallerOptions();
             mModel.getPackageInfo(mCurrentItem);
         } else {
             mIsDealingWithApk = false;

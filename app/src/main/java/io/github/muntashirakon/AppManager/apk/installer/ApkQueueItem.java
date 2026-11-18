@@ -52,6 +52,7 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
                 item = new ApkQueueItem(uri.getSchemeSpecificPart(), true);
             } else { // file, content
                 item = new ApkQueueItem(ApkSource.getCachedApkSource(uri, mimeType));
+                item.mDeleteSourceEligible = true;
                 item.mOriginatingUri = originatingUri;
                 item.mOriginatingPackage = originatingPackage;
                 if (takeFlags > 0) {
@@ -65,7 +66,10 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
 
     @NonNull
     public static ApkQueueItem fromApkSource(@NonNull ApkSource apkSource) {
-        return new ApkQueueItem(apkSource.toCachedSource());
+        ApkQueueItem item = new ApkQueueItem(apkSource.toCachedSource());
+        item.mDeleteSourceEligible = apkSource instanceof io.github.muntashirakon.AppManager.apk.UriApkSource
+                || apkSource instanceof io.github.muntashirakon.AppManager.apk.CachedApkSource;
+        return item;
     }
 
     @NonNull
@@ -76,6 +80,7 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
     private String mAppLabel;
     private final boolean mInstallExisting;
     private boolean mTestOnly;
+    private boolean mDeleteSourceEligible;
     @Nullable
     private String mOriginatingPackage;
     @Nullable
@@ -106,6 +111,7 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
         mAppLabel = in.readString();
         mInstallExisting = in.readByte() != 0;
         mTestOnly = in.readByte() != 0;
+        mDeleteSourceEligible = in.readByte() != 0;
         mOriginatingPackage = in.readString();
         mOriginatingUri = ParcelCompat.readParcelable(in, Uri.class.getClassLoader(), Uri.class);
         mApkSource = ParcelCompat.readParcelable(in, ApkSource.class.getClassLoader(), ApkSource.class);
@@ -134,6 +140,10 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
 
     public boolean isTestOnly() {
         return mTestOnly;
+    }
+
+    public boolean isDeleteSourceEligible() {
+        return mDeleteSourceEligible;
     }
 
     public void setTestOnly(boolean testOnly) {
@@ -201,6 +211,7 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
         dest.writeString(mAppLabel);
         dest.writeByte((byte) (mInstallExisting ? 1 : 0));
         dest.writeByte((byte) (mTestOnly ? 1 : 0));
+        dest.writeByte((byte) (mDeleteSourceEligible ? 1 : 0));
         dest.writeString(mOriginatingPackage);
         dest.writeParcelable(mOriginatingUri, flags);
         dest.writeParcelable(mApkSource, flags);
@@ -215,6 +226,7 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
         mAppLabel = JSONUtils.optString(jsonObject, "app_label", null);
         mInstallExisting = jsonObject.optBoolean("install_existing", false);
         mTestOnly = jsonObject.optBoolean("test_only", false);
+        mDeleteSourceEligible = jsonObject.optBoolean("delete_source_eligible", false);
         mOriginatingPackage = JSONUtils.optString(jsonObject, "originating_package", null);
         String originatingUri = JSONUtils.optString(jsonObject, "originating_uri", null);
         mOriginatingUri = originatingUri != null ? Uri.parse(originatingUri) : null;
@@ -253,6 +265,7 @@ public class ApkQueueItem implements Parcelable, IJsonSerializer {
         jsonObject.put("app_label", mAppLabel);
         jsonObject.put("install_existing", mInstallExisting);
         jsonObject.put("test_only", mTestOnly);
+        jsonObject.put("delete_source_eligible", mDeleteSourceEligible);
         jsonObject.put("originating_package", mOriginatingPackage);
         jsonObject.put("originating_uri", mOriginatingUri != null ? mOriginatingUri.toString() : null);
         jsonObject.put("apk_source", mApkSource != null ? mApkSource.serializeToJson() : null);

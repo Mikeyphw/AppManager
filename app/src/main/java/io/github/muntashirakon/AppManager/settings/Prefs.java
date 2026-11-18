@@ -522,6 +522,10 @@ public final class Prefs {
             return AppPref.getBoolean(AppPref.PrefKey.PREF_INSTALLER_BLOCK_TRACKERS_BOOL);
         }
 
+        public static boolean deleteApkAfterInstall() {
+            return AppPref.getBoolean(AppPref.PrefKey.PREF_INSTALLER_DELETE_APK_AFTER_INSTALL_BOOL);
+        }
+
         public static boolean forceDexOpt() {
             return Build.VERSION.SDK_INT >= Build.VERSION_CODES.N
                     && AppPref.getBoolean(AppPref.PrefKey.PREF_INSTALLER_FORCE_DEX_OPT_BOOL);

@@ -166,6 +166,7 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
     private boolean mSignApkFiles;
     private boolean mForceDexOpt;
     private boolean mBlockTrackers;
+    private boolean mDeleteApkAfterInstall;
 
     private InstallerOptions() {
         mUserId = UserHandleHidden.myUserId();
@@ -187,6 +188,7 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
         mSignApkFiles = Prefs.Installer.canSignApk();
         mForceDexOpt = Prefs.Installer.forceDexOpt();
         mBlockTrackers = Prefs.Installer.blockTrackers();
+        mDeleteApkAfterInstall = Prefs.Installer.deleteApkAfterInstall();
     }
 
     protected InstallerOptions(@NonNull Parcel in) {
@@ -203,6 +205,7 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
         mSignApkFiles = ParcelCompat.readBoolean(in);
         mForceDexOpt = ParcelCompat.readBoolean(in);
         mBlockTrackers = ParcelCompat.readBoolean(in);
+        mDeleteApkAfterInstall = ParcelCompat.readBoolean(in);
     }
 
     private InstallerOptions(@NonNull InstallerOptions options) {
@@ -219,6 +222,7 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
         mSignApkFiles = options.mSignApkFiles;
         mForceDexOpt = options.mForceDexOpt;
         mBlockTrackers = options.mBlockTrackers;
+        mDeleteApkAfterInstall = options.mDeleteApkAfterInstall;
     }
 
     @Override
@@ -236,6 +240,7 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
         ParcelCompat.writeBoolean(dest, mSignApkFiles);
         ParcelCompat.writeBoolean(dest, mForceDexOpt);
         ParcelCompat.writeBoolean(dest, mBlockTrackers);
+        ParcelCompat.writeBoolean(dest, mDeleteApkAfterInstall);
     }
 
     protected InstallerOptions(@NonNull JSONObject jsonObject) throws JSONException {
@@ -254,6 +259,7 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
         mSignApkFiles = jsonObject.getBoolean("sign_apk_files");
         mForceDexOpt = jsonObject.getBoolean("force_dex_opt");
         mBlockTrackers = jsonObject.getBoolean("block_trackers");
+        mDeleteApkAfterInstall = jsonObject.optBoolean("delete_apk_after_install", false);
     }
 
     @NonNull
@@ -273,6 +279,7 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
         jsonObject.put("sign_apk_files", mSignApkFiles);
         jsonObject.put("force_dex_opt", mForceDexOpt);
         jsonObject.put("block_trackers", mBlockTrackers);
+        jsonObject.put("delete_apk_after_install", mDeleteApkAfterInstall);
         return jsonObject;
     }
 
@@ -402,5 +409,13 @@ public class InstallerOptions implements Parcelable, IJsonSerializer {
 
     public void setBlockTrackers(boolean blockTrackers) {
         mBlockTrackers = blockTrackers;
+    }
+
+    public boolean isDeleteApkAfterInstall() {
+        return mDeleteApkAfterInstall;
+    }
+
+    public void setDeleteApkAfterInstall(boolean deleteApkAfterInstall) {
+        mDeleteApkAfterInstall = deleteApkAfterInstall;
     }
 }

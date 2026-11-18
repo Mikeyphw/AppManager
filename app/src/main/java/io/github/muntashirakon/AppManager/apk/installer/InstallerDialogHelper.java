@@ -7,6 +7,7 @@ import android.graphics.drawable.Drawable;
 import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
+import com.google.android.material.materialswitch.MaterialSwitch;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -33,6 +34,8 @@ public final class InstallerDialogHelper {
     private final DialogTitleBuilder mTitleBuilder;
     private final FragmentContainerView mFragmentContainer;
     private final MaterialTextView mMessage;
+    private final MaterialSwitch mDeleteApkSwitch;
+    private boolean mCanDeleteSource;
     private final LinearLayoutCompat mLayout;
     private final int mFragmentId = R.id.fragment_container_view_tag;
     private final AlertDialog mDialog;
@@ -48,6 +51,7 @@ public final class InstallerDialogHelper {
         mTitleBuilder = mFragment.getTitleBuilder();
         mFragmentContainer = view.findViewById(mFragmentId);
         mMessage = view.findViewById(R.id.message);
+        mDeleteApkSwitch = view.findViewById(R.id.delete_original_apk);
         mLayout = view.findViewById(R.id.layout);
         mPositiveBtn = mDialog.getButton(AlertDialog.BUTTON_POSITIVE);
         mNegativeBtn = mDialog.getButton(AlertDialog.BUTTON_NEGATIVE);
@@ -55,6 +59,7 @@ public final class InstallerDialogHelper {
     }
 
     public void initProgress(View.OnClickListener cancelListener) {
+        hideDeletionOption();
         // Title section
         mTitleBuilder.setTitle(R.string._undefined)
                 .setStartIcon(R.drawable.ic_get_app)
@@ -78,6 +83,7 @@ public final class InstallerDialogHelper {
     }
 
     public void showParseFailedDialog(View.OnClickListener closeListener) {
+        hideDeletionOption();
         // Title section
         mTitleBuilder.setTitle(R.string._undefined)
                 .setStartIcon(R.drawable.ic_get_app)
@@ -110,6 +116,7 @@ public final class InstallerDialogHelper {
     public void showWhatsNewDialog(@StringRes int installButtonRes, Fragment fragment,
                                    @NonNull OnClickButtonsListener onClickButtonsListener,
                                    @NonNull View.OnClickListener appInfoButtonListener) {
+        showDeletionOption();
         // Buttons
         mNeutralBtn.setVisibility(View.VISIBLE);
         mNeutralBtn.setText(R.string.app_info);
@@ -130,6 +137,7 @@ public final class InstallerDialogHelper {
     public void showInstallConfirmationDialog(@StringRes int installButtonRes,
                                               @NonNull OnClickButtonsListener onClickButtonsListener,
                                               @NonNull View.OnClickListener appInfoButtonListener) {
+        showDeletionOption();
         // Buttons
         mNeutralBtn.setVisibility(View.VISIBLE);
         mNeutralBtn.setText(R.string.app_info);
@@ -150,6 +158,7 @@ public final class InstallerDialogHelper {
     public void showApkChooserDialog(@StringRes int installButtonRes, Fragment fragment,
                                      @NonNull OnClickButtonsListener onClickButtonsListener,
                                      @NonNull View.OnClickListener appInfoButtonListener) {
+        showDeletionOption();
         // Buttons
         mNeutralBtn.setVisibility(View.VISIBLE);
         mNeutralBtn.setText(R.string.app_info);
@@ -170,6 +179,7 @@ public final class InstallerDialogHelper {
     public void showDowngradeReinstallWarning(CharSequence msg,
                                               @NonNull OnClickButtonsListener onClickButtonsListener,
                                               @NonNull View.OnClickListener appInfoButtonListener) {
+        showDeletionOption();
         // Buttons
         mNeutralBtn.setVisibility(View.VISIBLE);
         mNeutralBtn.setText(R.string.app_info);
@@ -191,6 +201,7 @@ public final class InstallerDialogHelper {
                                                       @NonNull OnClickButtonsListener onClickButtonsListener,
                                                       @NonNull View.OnClickListener installOnlyButtonListener,
                                                       boolean isSystem) {
+        showDeletionOption();
         // Buttons
         mNeutralBtn.setVisibility(View.VISIBLE);
         mNeutralBtn.setText(R.string.only_install);
@@ -209,6 +220,7 @@ public final class InstallerDialogHelper {
     }
 
     public void showInstallProgressDialog(@Nullable View.OnClickListener backgroundButtonListener) {
+        hideDeletionOption();
         // Disable installer options
         mTitleBuilder.setEndIcon(null, null);
         // Buttons
@@ -236,6 +248,7 @@ public final class InstallerDialogHelper {
                                           @NonNull View.OnClickListener cancelClickListener,
                                           @Nullable View.OnClickListener openButtonClickListener,
                                           @Nullable View.OnClickListener appInfoButtonClickListener) {
+        hideDeletionOption();
         // Buttons
         if (appInfoButtonClickListener != null) {
             mNeutralBtn.setVisibility(View.VISIBLE);
@@ -255,6 +268,22 @@ public final class InstallerDialogHelper {
         mMessage.setVisibility(View.VISIBLE);
         mMessage.setText(msg);
         mFragmentContainer.setVisibility(View.GONE);
+    }
+
+    public void configureSourceDeletion(boolean eligible, boolean selected,
+                                        @NonNull android.widget.CompoundButton.OnCheckedChangeListener listener) {
+        mCanDeleteSource = eligible;
+        mDeleteApkSwitch.setOnCheckedChangeListener(null);
+        mDeleteApkSwitch.setChecked(eligible && selected);
+        mDeleteApkSwitch.setOnCheckedChangeListener(listener);
+    }
+
+    private void showDeletionOption() {
+        mDeleteApkSwitch.setVisibility(mCanDeleteSource ? View.VISIBLE : View.GONE);
+    }
+
+    private void hideDeletionOption() {
+        mDeleteApkSwitch.setVisibility(View.GONE);
     }
 
     public void dismiss() {

@@ -86,6 +86,7 @@ public class PackageInstallerService extends ForegroundService {
     private String mOnInstallFinishedOperationId;
     private final Map<String, PackageInstallResult> mCompletedInstallResults = new HashMap<>();
     private final Set<String> mKnownOperationIds = ConcurrentHashMap.newKeySet();
+    private final Set<String> mDeletionAttemptedOperationIds = ConcurrentHashMap.newKeySet();
     private QueuedProgressHandler mProgressHandler;
     private NotificationInfo mNotificationInfo;
     private PowerManager.WakeLock mWakeLock;
@@ -165,8 +166,17 @@ public class PackageInstallerService extends ForegroundService {
                         new DexOptimizer(PackageManagerCompat.getPackageManager(), packageName).forceDexOpt();
                     }
                 }
+                String finalMessage = statusMessage;
+                if (OriginalApkDeletion.shouldDelete(result, options, apkQueueItem)
+                        && mDeletionAttemptedOperationIds.add(apkQueueItem.getOperationId())) {
+                    boolean deleted = OriginalApkDeletion.deleteOriginal(PackageInstallerService.this, apkQueueItem);
+                    String explanation = getString(deleted ? R.string.installer_source_apk_deleted
+                            : R.string.installer_source_apk_retained);
+                    finalMessage = finalMessage == null || finalMessage.isEmpty()
+                            ? explanation : finalMessage + "\n" + explanation;
+                }
                 finishInstallation(apkQueueItem.getOperationId(), packageName, result, apkQueueItem.getAppLabel(),
-                        blockingPackage, statusMessage);
+                        blockingPackage, finalMessage);
             }
         });
         // Two possibilities: 1. Install-existing, 2. ApkFile/Uri
