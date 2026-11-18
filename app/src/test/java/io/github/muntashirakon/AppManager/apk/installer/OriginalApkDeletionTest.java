@@ -50,6 +50,22 @@ public class OriginalApkDeletionTest {
         assertTrue(uri.equals(decoded.getOriginalUri()));
     }
 
+    @Test public void cachedSourceHandlesMissingNullAndPresentMimeType() throws Exception {
+        Uri uri = Uri.parse("content://example.documents/document/missing-mime.apk");
+        JSONObject json = ApkSource.getCachedApkSource(uri, null).serializeToJson();
+        json.remove("mime_type");
+        CachedApkSource missing = (CachedApkSource) ApkSource.DESERIALIZER.deserialize(json);
+        assertTrue(uri.equals(missing.getOriginalUri()));
+        json.put("mime_type", JSONObject.NULL);
+        CachedApkSource explicitNull = (CachedApkSource) ApkSource.DESERIALIZER.deserialize(json);
+        assertTrue(uri.equals(explicitNull.getOriginalUri()));
+        json.put("mime_type", "application/vnd.android.package-archive");
+        CachedApkSource present = (CachedApkSource) ApkSource.DESERIALIZER.deserialize(json);
+        assertTrue(uri.equals(present.getOriginalUri()));
+        assertTrue("application/vnd.android.package-archive".equals(
+                present.serializeToJson().getString("mime_type")));
+    }
+
     @Test public void sameSourceQueueDefersDeletionUntilLastItem() throws Exception {
         ApkQueueItem first = makeItem("file:///storage/emulated/0/Download/test.apk", true);
         ApkQueueItem later = makeItem("file:///storage/emulated/0/Download/test.apk", true);

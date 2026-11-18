@@ -126,7 +126,7 @@ public class CachedApkSource extends ApkSource {
     protected CachedApkSource(@NonNull JSONObject jsonObject) throws JSONException {
         mUri = Uri.parse(jsonObject.getString("uri"));
         mOriginalUri = Uri.parse(jsonObject.optString("original_uri", mUri.toString()));
-        mMimeType = jsonObject.getString("mime_type");
+        mMimeType = JSONUtils.optString(jsonObject, "mime_type", null);
         mApkFileKey = jsonObject.getInt("apk_file_key");
         String cachedFile = JSONUtils.optString(jsonObject, "cached_file", null);
         mCachedFile = cachedFile != null ? new File(cachedFile) : null;
